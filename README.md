@@ -1,8 +1,18 @@
-# Host group tree – Monitoring › Hosts (Zabbix 8.0)
+# Host group tree – Monitoring › Hosts (Zabbix 7.0)
 
 Adds a host group tree panel to **Monitoring › Hosts**, **Monitoring › Problems** and **Data collection › Hosts**.
-The native page (tab filters, list, sorting, paging, auto-refresh, 8.0 table customizations) is **neither replaced
+The native page (tab filters, list, sorting, paging, auto-refresh) is **neither replaced
 nor copied**: the module wraps it in a two-column layout and drives the native filter.
+
+## Version 7.0
+
+Same code as the 8.0 build. Expected differences on 7.0:
+
+- the host group form is a page, not a popup: *Rename* and *Add group* open
+  *Data collection › Host groups › form* (detected automatically);
+- 7.0 tables have no rounded corners: the panel copies the style of the host table, so it has square corners and the
+  same border as the list;
+- no table customizations (introduced in 8.0).
 
 ## Installation
 

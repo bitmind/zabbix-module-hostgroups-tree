@@ -1,0 +1,7 @@
+{
+	"show_column_headers": false,
+	"show_expand_collapse_buttons": false,
+	"refresh_interval": 60,
+	"maintenance_period_minutes": 60,
+	"problem_limit": 50000
+}

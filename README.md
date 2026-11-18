@@ -1,0 +1,200 @@
+# Host group tree – Monitoring › Hosts (Zabbix 8.0)
+
+Adds a host group tree panel to **Monitoring › Hosts**, **Monitoring › Problems** and **Data collection › Hosts**.
+The native page (tab filters, list, sorting, paging, auto-refresh, 8.0 table customizations) is **neither replaced
+nor copied**: the module wraps it in a two-column layout and drives the native filter.
+
+## Installation
+
+1. Copy the `hostgrouptree/` folder to `<Zabbix frontend>/modules/` (e.g. `/usr/share/zabbix/modules/hostgrouptree`).
+   Same owner/permissions as the other frontend files.
+2. *Administration › General › Modules* → **Scan directory** → enable **Host group tree (Hosts, Problems, Data collection)**.
+3. Open *Monitoring › Hosts* and reload the page (Ctrl+F5 the first time, so that no cached assets are used).
+
+To uninstall: disable the module. The state saved in the browser (`localStorage`, key `hostgrouptree.state.v1`)
+is harmless.
+
+## Structure
+
+```
+hostgrouptree/
+├── manifest.json                    JSON action + assets loaded by the frontend
+├── config.json                      module configuration (see "Configuration")
+├── Module.php
+├── actions/HostGroupTreeData.php    zabbix.php?action=hostgrouptree.data → tree JSON
+└── assets/
+    ├── js/hostgrouptree.js          layout, tree, synchronization with the filter
+    └── css/hostgrouptree.css
+```
+
+Module assets are loaded on every page: the script exits immediately unless the page is one of those it handles
+(Monitoring › Hosts, Monitoring › Problems, Data collection › Hosts, plus the maintenance list and form and the host
+group list and form, for the automatic form filling), and does nothing in kiosk mode.
+
+## Pages
+
+| Page | Columns / indicators per group | Menu › MONITORING |
+|---|---|---|
+| Monitoring › Hosts | *Host groups* · *Hosts* (number of hosts, right-aligned) · *Problems* (dot with the worst severity) | Problems, Latest data, Inventory |
+| Monitoring › Problems | *Host groups* · *Problems* (dot with the worst severity + number of problems in red, the same red as the *PROBLEM* status; empty if 0) | Hosts, Latest data, Inventory |
+| Data collection › Hosts | *Host groups* · *Hosts* · *Availability* (small rounded red rectangle, like the availability icons, if the group has hosts with unavailable interfaces); counts computed with the applied filter | Hosts, Problems, Latest data, Inventory (CONFIGURATION without *Hosts*) |
+
+**Monitoring › Hosts:** the problems counted are the active, non-suppressed ones, limited to the severities checked in
+the *Severity* filter of the active tab.
+
+**Monitoring › Problems:** the counters apply **all the fields of the applied filter** of the active tab (Show
+Recent/Problems/History with the time selector period, hosts, triggers, name, severities, age, inventory, tags,
+suppressed, acknowledgement, symptoms…) **except Host groups**, which is exactly what the tree counts per group. The
+JS sends the page query to the endpoint (`problem_filter`) and the endpoint uses the same function as the native list,
+`CScreenProblem::getData()`. If it is not available in a version, it falls back to `problem.get` with the main fields
+(severities, hosts, triggers, name, tags, suppressed, acknowledgement, symptoms, age; *History* is treated as
+*Problems*). The counters are reloaded when a different filter is applied; selecting a group does not reload them.
+At most `problem_limit` problems are read (default 50,000).
+
+**Data collection › Hosts:** the number of hosts and the red indicator take into account the applied filter of the
+page (name, DNS, IP, port, status, monitored by / proxy / proxy group, templates, tags), except *Host groups*. If an
+option is not supported by the version, the endpoint counts without the filter instead of failing. The red indicator
+uses the logic of the *Host availability* widget with its default settings: monitored hosts not in maintenance; Agent,
+SNMP, IPMI, JMX interfaces and active agent checks; "not available" = `INTERFACE_AVAILABLE_FALSE`. The tooltip shows
+how many hosts are affected. The filter of this page is the classic filter (not a tab filter): clicking a group
+resubmits the filter form with all its current fields, replacing only *Host groups* and going back to the first page.
+
+The tree state (open branches, width, visibility) is shared by the three pages.
+
+## Behavior
+
+| Action | Effect |
+|---|---|
+| *All* root row | Removes the group from the filter (all groups). Shows the total number of hosts and the overall worst severity. Selected when the filter has no groups. |
+| Click on a name | Sets the group in the *Host groups* field of the **active filter tab** and presses *Apply*. The other fields are unchanged; the tab becomes "unsaved" if it differs from the saved one. |
+| Ctrl/⌘ + click | Adds/removes the group to/from the current selection (multiple selection). |
+| Virtual node (italic) | A prefix that does not exist as a group (e.g. `Sites` when only `Sites/Main` exists), or a group the user has no permission on: sets **all the real descendant groups** in the filter (only the top-most ones, since the native filter already includes subgroups). |
+| Arrow / double click on a name | Expands/collapses. The state is saved per browser. |
+| *Hosts* column | Hosts of the subtree (distinct: a host in several groups is counted once), empty if 0. |
+| `⋯` handle on the left edge (shown when hovering the row), or right click on the row | Opens the context menu (items follow the permissions of the user role): |
+| | **MONITORING**: *Hosts* or *Problems* (the other page; both from Data collection), *Latest data*, *Inventory*. |
+| | **CONFIGURATION**: *Hosts* (Data collection › Hosts filtered; not on that page), *Maintenance* (maintenance list filtered on the group). |
+| | **ACTIONS**: *Add group* (new group form with `<path>/`; Super admin), *Rename* (group form with the name selected; disabled on virtual nodes), *Create maintenance* (see below; disabled on the root). |
+| Colored dot | Worst severity of the active (non-suppressed) problems of the subtree, with the severity colors/names configured in Zabbix. Only the severities checked in the *Severity* filter of the active tab are considered (none checked = all): if the group has no problems of those severities, there is no dot. Updated when the filter is applied or the tab changes. On Monitoring › Hosts the tooltip shows how many hosts of the group have problems (e.g. "5 hosts with problems"), with the same severities. Click → *Problems* filtered on the group and the same severities. |
+| *Host groups* title, then + / − on the right (hidden by default: `show_expand_collapse_buttons`) | Expand all / collapse all (the root stays open). |
+| ✕ (right side of the panel header) / vertical strip | ✕ hides the panel, which becomes a 14 px white vertical strip (`CFG.strip_width`). The whole strip can be clicked to show the panel again. Reloading the page with the panel hidden shows no animation. |
+| Right edge of the panel | Drag to resize (180–640 px), double click to reset. |
+| Keyboard | ↑ ↓ to move, → ← to expand/collapse, Enter to select, Esc in the search box (bottom of the panel) or the ✕ in the box to clear it. |
+
+A virtual node with a single real branch (e.g. `Company` when only `Company/websites` exists) produces the same filter
+as its child: the clicked row is highlighted; if the filter comes from elsewhere (saved tab, manual edit) the real
+group is highlighted.
+
+The tree highlight follows the filter also when it is changed manually, when another saved tab is selected, when
+*Reset* is pressed or when the browser back/forward buttons are used. A blue dot next to a collapsed branch means
+that the selection is inside it. When the page opens, the branch of the group in the filter is expanded.
+
+Counters and severities are refreshed every `refresh_interval` seconds (default 60, only while the browser tab is
+visible) and at every page load.
+
+## Create maintenance
+
+Opens the native *New maintenance period* form already filled in, **without saving anything**: you confirm it with
+*Add*.
+
+- **Name:** `<group path> <YYYY-MM-DD hh:mm>`.
+- **Host groups:** the group (for a virtual node, its real groups).
+- **Period:** one, *One time only*, starting now, lasting `maintenance_period_minutes` (default 1 hour): the module
+  presses *Add* in the *Periods* section and confirms the period dialog with these values.
+
+To open the form exactly as Zabbix opens it (popup or page, with the dialog id its own script expects), the module
+goes to *Data collection › Maintenance* and presses the native *Create maintenance period* button; the data travels in
+`sessionStorage` (single use, 60 s). If a field is not found, that step is skipped with a
+`[hostgrouptree] maintenance: …` warning in the console and the rest of the form is left to be completed manually.
+After saving you stay on the maintenance list. Requires access to *Data collection › Maintenance* and an Admin or
+Super admin user.
+
+## Panel height
+
+- The top edge of the panel (open or reduced to the strip) is aligned with the top edge of the filter box, below the
+  filter tab icons.
+- The panel is `position: sticky` and its height is computed in JS as
+  **window height − top position of the panel − margin**. The margin (below, on the left towards the menu, towards
+  the list and on top while the page scrolls) is measured at load as the space between the Zabbix menu and the page
+  content; it can be fixed with `CFG.gap`.
+- A negative bottom margin of the same size keeps it out of the layout height, so it never makes the page longer and
+  never adds a scrollbar (on the left it uses the space of the footer, which is centered on the list).
+- It is recomputed on every window resize, scroll (of any container) and content size change (filter expanded or
+  collapsed, messages), with `requestAnimationFrame`.
+- The tree scrolls **inside** the panel: with a short host list the page does not become longer than the window; with
+  a long list the panel stays pinned at the top while you scroll the hosts.
+- Minimum height 220 px. Below 900 px of width the tree goes above the list, 280 px high.
+
+## Look
+
+Border radius, border, shadow and background of the panel, header color/height and row color are read at load from
+the native host table (`syncNativeStyle()`), so the panel looks like the list in every theme (dark and high-contrast
+included) without hardcoded values.
+
+## Configuration
+
+`config.json` in the module folder (read by the endpoint on every request, so reloading the page is enough):
+
+```json
+{
+	"show_column_headers": false,
+	"show_expand_collapse_buttons": false,
+	"refresh_interval": 60,
+	"maintenance_period_minutes": 60,
+	"problem_limit": 50000
+}
+```
+
+| Option | Default | Meaning |
+|---|---|---|
+| `show_column_headers` | `false` | Shows the column headers above the tree (*Host groups* · *Hosts* · *Problems* / *Availability*). |
+| `show_expand_collapse_buttons` | `false` | Shows the + / − buttons (expand all / collapse all) in the panel header. |
+| `refresh_interval` | `60` | Seconds between two automatic refreshes of the counters; `0` = only at page load. |
+| `maintenance_period_minutes` | `60` | Length of the period created by *Create maintenance*, in minutes. |
+| `problem_limit` | `50000` | Maximum number of problems read for the counters of Monitoring › Problems. |
+
+Missing options or options of the wrong type use the default; if the file is missing or is not valid JSON, all
+defaults apply. To upgrade the module without losing the configuration, keep your `config.json`.
+
+Less common layout parameters (sticky offset, widths, indentation, timeouts) are at the top of
+`assets/js/hostgrouptree.js`, in the `CFG` object.
+
+## How the filter is applied (compatibility notes)
+
+The module uses only the page DOM, no internal variables:
+
+1. **Main method (no page reload):** active tab = `.tabfilter-container .tabfilter-item-label.selected`
+   → content `#<data-target>` → multiselect `.multiselect[id^="groupids_"]` (jQuery API `multiSelect('clean'|'addData')`)
+   → click on `.tabfilter-container button[name="filter_apply"]`.
+2. **Fallback:** if one of these elements does not exist, or if within 3 s neither the URL nor the list changes, the
+   page is reloaded with the current URL, replacing only `groupids[]` (and resetting `page`). The console shows
+   `[hostgrouptree] ...`.
+
+To check which method is used: open the browser console and click a group. If the page does **not** reload and no
+`[hostgrouptree]` warning appears, the main method is in use.
+
+Other points to check on a new Zabbix version:
+
+- **Subgroups included:** clicking a group with children, the list must also show the hosts of the subgroups (native
+  behavior of the Monitoring › Hosts filter; the tree counters assume it).
+- **Menu links:** *Inventory* uses `hostinventories.php?filter_groups[]`, *Configuration › Hosts* uses
+  `host.list&filter_groups[]`. If the parameters change, the page opens without the filter: fix them in `openMenu()`.
+- **Host group forms** (*Rename*, *Add group*): the endpoint asks the Zabbix router how the `hostgroup.edit` action is
+  registered. If it is a page (Zabbix 7.0) it opens `zabbix.php?action=hostgroup.edit[&groupid=…]`. If it is a popup
+  (e.g. 8.0) it goes to *Data collection › Host groups* and uses the native *Create host group* button or the group
+  link (for *Rename* the list is filtered on the group name), so the dialog opens exactly as Zabbix opens it. For
+  *Add group* the name `<path>/` is written in the `name` field; for *Rename* the name is selected. The request
+  travels in `sessionStorage` (single use, 60 s). After saving you stay on the host group list.
+- **Native menu:** the menu uses Zabbix's `jQuery.fn.menuPopup`; if it is not available, it uses its own menu.
+
+## Performance
+
+The endpoint runs 4 API calls (groups, problems, triggers of the problems, hosts with their groups) with the user's
+permissions (plus the interface availability on Data collection › Hosts). On instances with tens of thousands of hosts,
+increase `refresh_interval` in `config.json` or set it to 0 (refresh only at page load).
+
+## Security
+
+Group names are always inserted as text (`textContent`), never as HTML. The endpoint is read-only, requires access to
+*Monitoring › Hosts*, *Monitoring › Problems* or *Data collection › Hosts*, and uses the permissions of the current
+user (groups that are not visible do not appear; their prefixes become virtual nodes).

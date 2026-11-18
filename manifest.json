@@ -1,0 +1,19 @@
+{
+	"manifest_version": 2.0,
+	"id": "hostgrouptree",
+	"name": "Host group tree (Hosts, Problems, Data collection)",
+	"namespace": "HostGroupTree",
+	"version": "1.14.2",
+	"author": "",
+	"description": "Adds a collapsible host group tree to Monitoring > Hosts, Monitoring > Problems and Data collection > Hosts. Clicking a group sets it in the active filter tab, keeping all the other filter fields. Shows host count and worst problem severity per group.",
+	"actions": {
+		"hostgrouptree.data": {
+			"class": "HostGroupTreeData",
+			"layout": "layout.json"
+		}
+	},
+	"assets": {
+		"css": ["hostgrouptree.css"],
+		"js": ["hostgrouptree.js"]
+	}
+}

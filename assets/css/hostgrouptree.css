@@ -1,0 +1,649 @@
+/*
+ * Host group tree for Monitoring > Hosts.
+ * Colors inherit from the active Zabbix theme; theme-specific tweaks use html[theme="..."].
+ */
+
+.hgt-layout {
+	--hgt-width: 280px;
+	--hgt-gap: 10px;
+	--hgt-border: rgba(127, 127, 127, 0.28);
+	--hgt-hover: rgba(127, 127, 127, 0.12);
+	--hgt-selected-bg: rgba(10, 70, 110, 0.12);
+	--hgt-selected-bar: #0275b8;
+	--hgt-muted: #768d99;
+	--hgt-panel-bg: #ffffff;
+
+	display: flex;
+	align-items: flex-start;
+	min-width: 0;
+}
+
+html[theme="dark-theme"] .hgt-layout {
+	--hgt-selected-bg: rgba(79, 165, 222, 0.18);
+	--hgt-selected-bar: #4f9fde;
+	--hgt-muted: #8a9aa5;
+	--hgt-panel-bg: #2b2b2b;
+}
+
+html[theme="hc-light"] .hgt-layout {
+	--hgt-border: #000000;
+	--hgt-selected-bg: #000000;
+	--hgt-selected-bar: #000000;
+	--hgt-muted: #000000;
+}
+
+html[theme="hc-dark"] .hgt-layout {
+	--hgt-border: #ffffff;
+	--hgt-selected-bg: #ffffff;
+	--hgt-selected-bar: #ffffff;
+	--hgt-muted: #ffffff;
+	--hgt-panel-bg: #000000;
+}
+
+.hgt-content {
+	flex: 1 1 auto;
+	min-width: 0;	/* lets the native table shrink/scroll instead of overflowing */
+}
+
+/* Panel ------------------------------------------------------------------------------------------------------- */
+
+.hgt-panel {
+	position: sticky;
+	z-index: 1;	/* the panel reaches the window bottom, over the (transparent) page footer area */
+	top: 8px;	/* overwritten by JS (CFG.sticky_top) */
+	flex: 0 0 var(--hgt-width);
+	width: var(--hgt-width);
+	/* The gap belongs to the panel, so a hidden panel leaves no space. */
+	margin-right: var(--hgt-gap, 10px);
+	min-height: 220px;
+	box-sizing: border-box;
+	display: flex;
+	background: var(--hgt-panel-bg);
+	/* Border, radius and shadow are copied from the native host list by JS (syncNativeStyle). */
+	border: var(--hgt-card-border, 1px solid var(--hgt-border));
+	border-radius: var(--hgt-radius, 4px);
+	box-shadow: var(--hgt-shadow, none);
+	overflow: hidden;
+	transition: flex-basis 0.15s ease, width 0.15s ease, margin-right 0.15s ease, opacity 0.15s ease,
+		visibility 0s linear 0s;
+}
+
+.hgt-resizing .hgt-panel {
+	transition: none;
+	user-select: none;
+}
+
+/* Page load (e.g. reload with the panel already hidden): no animation. */
+.hgt-no-anim .hgt-panel {
+	transition: none !important;
+}
+
+.hgt-body {
+	/* Fixed width: during hide/show the panel clips its content instead of reflowing it. */
+	flex: 0 0 auto;
+	width: calc(var(--hgt-width) - 2px);
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.hgt-header {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	/* Expand/collapse on the left, hide on the right. */
+	justify-content: space-between;
+	gap: 6px;
+	box-sizing: border-box;
+	min-height: var(--hgt-head-height, 32px);
+	padding: 2px 6px 2px 10px;
+	background: var(--hgt-head-bg, transparent);
+	color: var(--hgt-head-color, inherit);
+	border-bottom: 1px solid var(--hgt-head-border, var(--hgt-border));
+}
+
+.hgt-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.hgt-tools {
+	display: flex;
+	flex: 0 0 auto;
+	gap: 2px;
+}
+
+.hgt-icon-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	min-width: 0;
+	height: 22px;
+	padding: 0;
+	margin: 0;
+	border: 1px solid transparent;
+	border-radius: 2px;
+	background: none;
+	color: inherit;
+	cursor: pointer;
+	opacity: 0.75;
+}
+
+.hgt-icon-btn svg {
+	display: block;
+}
+
+.hgt-icon-btn[hidden] {
+	display: none;
+}
+
+.hgt-icon-btn:hover,
+.hgt-icon-btn:focus-visible {
+	opacity: 1;
+	border-color: var(--hgt-border);
+	background: var(--hgt-hover);
+}
+
+.hgt-icon-btn:disabled {
+	opacity: 0.3;
+	cursor: default;
+	background: none;
+	border-color: transparent;
+}
+
+.hgt-btn-refresh.is-loading svg {
+	animation: hgt-spin 0.8s linear infinite;
+}
+
+@keyframes hgt-spin {
+	to { transform: rotate(360deg); }
+}
+
+.hgt-search {
+	position: relative;
+	flex: 0 0 auto;
+	padding: 6px 8px;
+	border-top: 1px solid var(--hgt-border);
+}
+
+.hgt-search input {
+	width: 100%;
+	box-sizing: border-box;
+	padding-right: 24px;
+}
+
+/* Own clear button instead of the browser one (not shown by every browser/theme). */
+.hgt-search input::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+	display: none;
+}
+
+.hgt-search .hgt-search-clear {
+	position: absolute;
+	top: 50%;
+	right: 11px;
+	width: 18px;
+	height: 18px;
+	transform: translateY(-50%);
+}
+
+.hgt-search .hgt-search-clear svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* Tree -------------------------------------------------------------------------------------------------------- */
+
+.hgt-tree {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	overscroll-behavior: contain;
+	padding: 2px 0 6px;
+}
+
+.hgt-row {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	height: 28px;
+	padding-right: 10px;
+	box-sizing: border-box;
+	border-bottom: 1px solid var(--hgt-row-border, rgba(127, 127, 127, 0.1));
+	cursor: pointer;
+	outline: none;
+	white-space: nowrap;
+}
+
+.hgt-row:hover {
+	background: var(--hgt-hover);
+}
+
+.hgt-row:focus-visible {
+	box-shadow: inset 0 0 0 2px var(--hgt-selected-bar);
+}
+
+.hgt-row.is-selected {
+	background: var(--hgt-selected-bg);
+}
+
+.hgt-row.is-selected::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 3px;
+	background: var(--hgt-selected-bar);
+}
+
+html[theme^="hc-"] .hgt-row.is-selected,
+html[theme^="hc-"] .hgt-row.is-selected .hgt-col-count,
+html[theme^="hc-"] .hgt-row.is-selected .hgt-pcount {
+	color: var(--hgt-panel-bg, #ffffff);
+}
+
+/* A collapsed branch that contains the selected group. */
+.hgt-row.has-selection .hgt-label::after {
+	content: '';
+	display: inline-block;
+	width: 5px;
+	height: 5px;
+	margin-left: 5px;
+	vertical-align: middle;
+	border-radius: 50%;
+	background: var(--hgt-selected-bar);
+}
+
+.hgt-toggle {
+	flex: 0 0 16px;
+	height: 16px;
+	position: relative;
+}
+
+.hgt-toggle::before {
+	content: '';
+	position: absolute;
+	left: 5px;
+	top: 4px;
+	border-style: solid;
+	border-width: 4px 0 4px 5px;
+	border-color: transparent transparent transparent currentColor;
+	opacity: 0.7;
+	transition: transform 0.12s ease;
+}
+
+.hgt-toggle.is-open::before {
+	transform: rotate(90deg);
+}
+
+.hgt-toggle.is-leaf::before {
+	display: none;
+}
+
+.hgt-label {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.hgt-row.is-virtual .hgt-label {
+	font-style: italic;
+}
+
+.hgt-sev {
+	flex: 0 0 10px;
+	box-sizing: border-box;
+	width: 10px;
+	min-width: 10px;
+	height: 10px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.hgt-sev.is-none,
+.hgt-sev.is-disabled {
+	cursor: default;
+}
+
+.hgt-sev.is-none {
+	background: none;
+}
+
+.hgt-sev:not(.is-none):not(.is-disabled):hover {
+	box-shadow: 0 0 0 2px var(--hgt-border);
+}
+
+/* Columns: name | hosts (Hosts, Data collection) | problems / availability. Same widths in headers and rows. */
+.hgt-layout {
+	--hgt-col-count: 44px;
+	--hgt-col-ind: 64px;
+}
+
+.hgt-col-count {
+	flex: 0 0 var(--hgt-col-count);
+	width: var(--hgt-col-count);
+	box-sizing: border-box;
+	color: var(--hgt-muted);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.hgt-col-ind {
+	flex: 0 0 var(--hgt-col-ind);
+	width: var(--hgt-col-ind);
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 4px;
+	white-space: nowrap;
+}
+
+.hgt-columns {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 4px;
+	box-sizing: border-box;
+	min-height: 26px;
+	padding: 0 10px 0 26px;
+	color: var(--hgt-head-color, var(--hgt-muted));
+	background: var(--hgt-head-bg, transparent);
+	border-bottom: 1px solid var(--hgt-head-border, var(--hgt-border));
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.hgt-columns[hidden] {
+	display: none;
+}
+
+.hgt-no-headers .hgt-row .hgt-col-ind {
+	flex: 0 0 auto;
+	width: auto;
+	min-width: 10px;
+}
+
+/* Data collection: room for the availability rectangle on every row, so the host counts stay aligned. */
+.hgt-mode-config.hgt-no-headers .hgt-row .hgt-col-ind {
+	min-width: 16px;
+}
+
+.hgt-no-headers .hgt-row .hgt-col-count {
+	flex-basis: auto;
+	width: auto;
+	min-width: 4.5ch;
+}
+
+.hgt-columns .hgt-col-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.hgt-columns .hgt-col-count {
+	color: inherit;
+}
+
+/*
+ * Data collection > Hosts: hosts with unavailable interfaces. Small rounded red rectangle, like the Zabbix
+ * availability icons (color from the theme class "status-red", fallback below), without text.
+ */
+.hgt-sev.hgt-unavailable {
+	flex: 0 0 16px;
+	width: 16px;
+	min-width: 16px;
+	height: 10px;
+	padding: 0;
+	border-radius: 2px;
+	font-size: 0;
+	line-height: 0;
+}
+
+:where(.hgt-unavailable) {
+	background-color: #e45959;
+}
+
+/* Context menu handle: left gutter of the row, shown on hover/focus (and while its menu is open). */
+.hgt-handle {
+	position: absolute;
+	left: 6px;
+	top: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 18px;
+	border-radius: 2px;
+	color: var(--hgt-muted);
+	transform: translateY(-50%);
+	opacity: 0;
+	cursor: pointer;
+	transition: opacity 0.1s ease;
+}
+
+.hgt-row:hover .hgt-handle,
+.hgt-row:focus-visible .hgt-handle,
+.hgt-handle[aria-expanded="true"] {
+	opacity: 1;
+}
+
+.hgt-handle:hover {
+	color: inherit;
+	background: var(--hgt-hover);
+}
+
+@media (hover: none) {
+	.hgt-handle {
+		opacity: 0.6;
+	}
+}
+
+/*
+ * Problems page: number of problems, right of the dot. Color from the theme class "red" (the red of the "PROBLEM"
+ * status); the zero-specificity rule below is only a fallback.
+ */
+.hgt-pcount {
+	flex: 0 0 auto;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+:where(.hgt-pcount) {
+	color: #e45959;
+}
+
+/*
+ * Fallback severity colors. Zero specificity (:where) so the theme classes .na-bg ... .disaster-bg, including
+ * custom severity colors from Administration > General > Trigger displaying options, always win.
+ */
+:where(.hgt-sev):where([data-severity="0"]) { background-color: #97aab3; }
+:where(.hgt-sev):where([data-severity="1"]) { background-color: #7499ff; }
+:where(.hgt-sev):where([data-severity="2"]) { background-color: #ffc859; }
+:where(.hgt-sev):where([data-severity="3"]) { background-color: #ffa059; }
+:where(.hgt-sev):where([data-severity="4"]) { background-color: #e97659; }
+:where(.hgt-sev):where([data-severity="5"]) { background-color: #e45959; }
+
+/* Messages ---------------------------------------------------------------------------------------------------- */
+
+.hgt-message {
+	padding: 12px 10px;
+	color: var(--hgt-muted);
+	text-align: center;
+}
+
+.hgt-message.is-loading::before {
+	content: '';
+	display: inline-block;
+	width: 14px;
+	height: 14px;
+	border: 2px solid var(--hgt-border);
+	border-top-color: var(--hgt-selected-bar);
+	border-radius: 50%;
+	animation: hgt-spin 0.8s linear infinite;
+}
+
+.hgt-message[hidden] {
+	display: none;
+}
+
+/* Hidden panel: zero width, no border, no gap. Shown again with the toggle next to the page title. ------- */
+
+.hgt-collapsed .hgt-panel {
+	flex-basis: 0;
+	width: 0;
+	min-width: 0;
+	margin-right: 0;
+	border-width: 0;
+	box-shadow: none;
+	opacity: 0;
+	visibility: hidden;
+	transition: flex-basis 0.15s ease, width 0.15s ease, margin-right 0.15s ease, opacity 0.15s ease,
+		visibility 0s linear 0.15s;
+}
+
+/* Hidden panel: narrow white vertical strip; the whole strip is the "show" button. */
+.hgt-show {
+	display: none;
+}
+
+.hgt-strip.hgt-collapsed .hgt-panel {
+	flex-basis: var(--hgt-strip-width, 14px);
+	width: var(--hgt-strip-width, 14px);
+	margin-right: var(--hgt-gap, 10px);
+	border-width: 1px;
+	opacity: 1;
+	visibility: visible;
+	cursor: pointer;
+}
+
+.hgt-strip.hgt-collapsed .hgt-body,
+.hgt-strip.hgt-collapsed .hgt-resizer {
+	display: none;
+}
+
+.hgt-strip.hgt-collapsed .hgt-show {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	margin: 0;
+	padding: 10px 0 0;
+	border: none;
+	border-radius: 0;
+	background: none;
+	color: var(--hgt-muted);
+	cursor: pointer;
+}
+
+.hgt-strip.hgt-collapsed .hgt-show:hover,
+.hgt-strip.hgt-collapsed .hgt-show:focus-visible {
+	color: inherit;
+	background: var(--hgt-hover);
+}
+
+/* Resize handle ----------------------------------------------------------------------------------------------- */
+
+.hgt-resizer {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	width: 6px;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.hgt-resizer:hover,
+.hgt-resizing .hgt-resizer {
+	background: var(--hgt-selected-bar);
+	opacity: 0.35;
+}
+
+/* Fallback context menu (used only if Zabbix menuPopup is not available) -------------------------------------- */
+
+.hgt-menu {
+	position: fixed;
+	z-index: 1100;
+	min-width: 180px;
+	margin: 0;
+	padding: 4px 0;
+	list-style: none;
+	background: var(--hgt-panel-bg, #ffffff);
+	border: 1px solid rgba(127, 127, 127, 0.4);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+html[theme="dark-theme"] .hgt-menu {
+	background: #2b2b2b;
+}
+
+.hgt-menu-header {
+	padding: 4px 12px;
+	font-weight: bold;
+	border-bottom: 1px solid rgba(127, 127, 127, 0.25);
+	margin-bottom: 2px;
+}
+
+.hgt-menu a,
+.hgt-menu .is-disabled {
+	display: block;
+	padding: 4px 12px;
+	text-decoration: none;
+	color: inherit;
+}
+
+.hgt-menu .is-disabled {
+	opacity: 0.45;
+}
+
+.hgt-menu a:hover,
+.hgt-menu a:focus {
+	background: rgba(127, 127, 127, 0.15);
+	outline: none;
+}
+
+/* Narrow screens: tree above the list. ------------------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+	.hgt-layout {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.hgt-panel {
+		position: static;
+		margin: 0 0 var(--hgt-gap, 10px) !important;
+		flex-basis: auto;
+		width: auto;
+		height: 280px !important;
+	}
+
+	.hgt-body {
+		width: 100%;
+	}
+
+	.hgt-collapsed .hgt-panel {
+		display: none;
+	}
+
+
+	.hgt-resizer {
+		display: none;
+	}
+}

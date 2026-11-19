@@ -74,7 +74,7 @@ The tree state (open branches, width, visibility) is shared by the three pages.
 | `⋯` handle on the left edge (shown when hovering the row), or right click on the row | Opens the context menu (items follow the permissions of the user role): |
 | | **MONITORING**: *Hosts* or *Problems* (the other page; both from Data collection), *Latest data*, *Inventory*. |
 | | **CONFIGURATION**: *Hosts* (Data collection › Hosts filtered; not on that page), *Maintenance* (maintenance list filtered on the group). |
-| | **ACTIONS**: *Add group* (new group form with `<path>/`; Super admin), *Rename* (group form with the name selected; disabled on virtual nodes), *Create maintenance* (see below; disabled on the root). |
+| | **ACTIONS**: *Add group* (new group form with `<path>/`; Super admin), *Edit host group* (group form with the name selected; disabled on virtual nodes), *Create maintenance* (see below; disabled on the root). |
 | Colored dot | Worst severity of the active (non-suppressed) problems of the subtree, with the severity colors/names configured in Zabbix. Only the severities checked in the *Severity* filter of the active tab are considered (none checked = all): if the group has no problems of those severities, there is no dot. Updated when the filter is applied or the tab changes. On Monitoring › Hosts the tooltip shows how many hosts of the group have problems (e.g. "5 hosts with problems"), with the same severities. Click → *Problems* filtered on the group and the same severities. |
 | *Host groups* title, then + / − on the right (hidden by default: `show_expand_collapse_buttons`) | Expand all / collapse all (the root stays open). |
 | ✕ (right side of the panel header) / vertical strip | ✕ hides the panel, which becomes a 14 px white vertical strip (`CFG.strip_width`). The whole strip can be clicked to show the panel again. Reloading the page with the panel hidden shows no animation. |
@@ -139,6 +139,7 @@ included) without hardcoded values.
 {
 	"show_column_headers": false,
 	"show_expand_collapse_buttons": false,
+	"open_forms_in_place": true,
 	"refresh_interval": 60,
 	"maintenance_period_minutes": 60,
 	"problem_limit": 50000
@@ -149,6 +150,7 @@ included) without hardcoded values.
 |---|---|---|
 | `show_column_headers` | `false` | Shows the column headers above the tree (*Host groups* · *Hosts* · *Problems* / *Availability*). |
 | `show_expand_collapse_buttons` | `false` | Shows the + / − buttons (expand all / collapse all) in the panel header. |
+| `open_forms_in_place` | `true` | *Edit host group* / *Add group* open the host group form on the current page. `false` = through *Data collection › Host groups* (see below). |
 | `refresh_interval` | `60` | Seconds between two automatic refreshes of the counters; `0` = only at page load. |
 | `maintenance_period_minutes` | `60` | Length of the period created by *Create maintenance*, in minutes. |
 | `problem_limit` | `50000` | Maximum number of problems read for the counters of Monitoring › Problems. |
@@ -179,12 +181,18 @@ Other points to check on a new Zabbix version:
   behavior of the Monitoring › Hosts filter; the tree counters assume it).
 - **Menu links:** *Inventory* uses `hostinventories.php?filter_groups[]`, *Configuration › Hosts* uses
   `host.list&filter_groups[]`. If the parameters change, the page opens without the filter: fix them in `openMenu()`.
-- **Host group forms** (*Rename*, *Add group*): the endpoint asks the Zabbix router how the `hostgroup.edit` action is
+- **Host group forms** (*Edit host group*, *Add group*): the endpoint asks the Zabbix router how the `hostgroup.edit` action is
   registered. If it is a page (Zabbix 7.0) it opens `zabbix.php?action=hostgroup.edit[&groupid=…]`. If it is a popup
-  (e.g. 8.0) it goes to *Data collection › Host groups* and uses the native *Create host group* button or the group
-  link (for *Rename* the list is filtered on the group name), so the dialog opens exactly as Zabbix opens it. For
-  *Add group* the name `<path>/` is written in the `name` field; for *Rename* the name is selected. The request
-  travels in `sessionStorage` (single use, 60 s). After saving you stay on the host group list.
+  (e.g. 8.0) it opens it **on the current page**. The form script looks up its dialog with
+  `overlays_stack.getById(<id>)`, and the id expected differs between versions: while the dialog loads, a lookup of
+  an unknown `hostgroup…` id is answered with the dialog just opened, and that id is remembered in `localStorage`
+  (`hostgrouptree.dialogueids`), so the next time the dialog opens with the right id directly. Lookups are answered
+  only while that dialog is open: a closed dialog is never returned, so it can be opened again any number of times. For *Add group* the
+  name `<path>/` is written in the `name` field; for *Edit host group* the name is selected. After saving, the tree is
+  reloaded. If the dialog does not work (e.g. its *Add* button stays disabled), set `open_forms_in_place` to `false`:
+  the module then goes to *Data collection › Host groups* and uses the native *Create host group* button or the group
+  link (for *Edit host group* the list is filtered on the group name); the request travels in `sessionStorage` (single use,
+  60 s) and after saving you stay on the host group list.
 - **Native menu:** the menu uses Zabbix's `jQuery.fn.menuPopup`; if it is not available, it uses its own menu.
 
 ## Performance

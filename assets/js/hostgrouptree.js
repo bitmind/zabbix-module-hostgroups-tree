@@ -68,6 +68,7 @@
 		refresh_interval: 60000,	// Tree counters/severity refresh (ms). 0 = disabled.
 		show_column_headers: false,
 		show_expand_collapse_buttons: false,
+		open_forms_in_place: true,
 		maintenance_period_minutes: 60,
 		gap: null,					// Space around the panel (px). null = same as the space between the Zabbix
 									// menu and the page content, measured at load.
@@ -124,7 +125,7 @@
 			add_nested: 'Add group',
 			actions_section: 'Actions',
 			maintenance: 'Maintenance',
-			rename: 'Rename',
+			rename: 'Edit host group',
 			create_maintenance: 'Create maintenance',
 			maintenance_created: 'Maintenance created',
 			collapse_panel: 'Hide panel',
@@ -168,7 +169,7 @@
 			add_nested: 'Aggiungi gruppo',
 			actions_section: 'Azioni',
 			maintenance: 'Manutenzione',
-			rename: 'Rinomina',
+			rename: 'Modifica gruppo host',
 			create_maintenance: 'Crea manutenzione',
 			maintenance_created: 'Manutenzione creata',
 			collapse_panel: 'Nascondi pannello',
@@ -362,6 +363,10 @@
 	// Module configuration (config.json) from the data endpoint: applied once, at the first load.
 	function applyModuleConfig(config) {
 		if (config && typeof config === 'object') {
+			if (typeof config.open_forms_in_place === 'boolean') {
+				CFG.open_forms_in_place = config.open_forms_in_place;
+			}
+
 			if (typeof config.show_expand_collapse_buttons === 'boolean') {
 				CFG.show_expand_collapse_buttons = config.show_expand_collapse_buttons;
 			}
@@ -1932,6 +1937,24 @@
 			return;
 		}
 
+		// In place, on the current page (falls back to the host group list page if the popup API is missing).
+		if (openFormInPlace('hostgroup.edit', params, trigger_element, (dialogue) => {
+			if (prefill_name) {
+				prefillName(dialogue, prefill_name);
+			}
+			else if (select_name) {
+				waitFor(() => dialogue && dialogue.querySelector('[name="name"]'), (field) => {
+					field.focus();
+
+					if (typeof field.select === 'function') {
+						field.select();
+					}
+				});
+			}
+		}, params.groupid ? 'group_updated' : 'group_created')) {
+			return;
+		}
+
 		const node = params.groupid ? model.by_groupid.get(String(params.groupid)) : null;
 		const request = {
 			kind: params.groupid ? 'rename' : 'create',
@@ -1954,6 +1977,160 @@
 			? zabbixUrl('hostgroup.list', '', [], {filter_set: 1, filter_name: node.path})
 			: zabbixUrl('hostgroup.list', '', [])
 		);
+	}
+
+	/*
+	 * Opens a native form popup (e.g. "hostgroup.edit") on the current page.
+	 *
+	 * The form script finds its dialog with overlays_stack.getById(<id>), where <id> is the dialog id the native page
+	 * uses, which differs between versions. The module opens the dialog with the id learned on a previous run (or a
+	 * guess) and, while the dialog loads, answers a lookup of an unknown id with this dialog and remembers that id
+	 * (localStorage), so from the next time the dialog opens with the right id directly.
+	 *
+	 * Returns false if the popup API is not available (the caller then uses the list page).
+	 */
+	const DIALOGUE_IDS_KEY = 'hostgrouptree.dialogueids';
+
+	// Dialog just opened by the module, whose id may still be unknown: {action, overlay, until}.
+	let pending_form = null;
+
+	// Ids learned for open dialogs: id -> overlay. Valid only while the dialog is in the page.
+	const dialogue_aliases = new Map();
+
+	function loadDialogueIds() {
+		try {
+			return JSON.parse(window.localStorage.getItem(DIALOGUE_IDS_KEY)) || {};
+		}
+		catch (e) {
+			return {};
+		}
+	}
+
+	function isOpenOverlay(overlay) {
+		const element = overlay && overlay.$dialogue ? overlay.$dialogue[0] : null;
+
+		return !!element && element.isConnected;
+	}
+
+	function hookOverlayLookup() {
+		const stack = window.overlays_stack;
+
+		if (!stack || typeof stack.getById !== 'function') {
+			return false;
+		}
+
+		if (!stack.hgt_hooked) {
+			const original = stack.getById;
+
+			stack.getById = function (id) {
+				const found = original.apply(this, arguments);
+
+				if (found || typeof id !== 'string') {
+					return found;
+				}
+
+				// An id already learned for a dialog that is still open.
+				if (dialogue_aliases.has(id)) {
+					const overlay = dialogue_aliases.get(id);
+
+					if (isOpenOverlay(overlay)) {
+						return overlay;
+					}
+
+					dialogue_aliases.delete(id);
+				}
+
+				// A dialog the module has just opened (still in the page) looked up with another id of the same kind
+				// (e.g. "hostgroup..." for "hostgroup.edit"): that is its id. Never a closed dialog, never other dialogs.
+				if (!pending_form || Date.now() > pending_form.until || !isOpenOverlay(pending_form.overlay)) {
+					pending_form = null;
+
+					return found;
+				}
+
+				const kind = pending_form.action.split('.')[0].toLowerCase();
+
+				if (!id.toLowerCase().replace(/[^a-z0-9]/g, '').includes(kind)) {
+					return found;
+				}
+
+				dialogue_aliases.set(id, pending_form.overlay);
+
+				try {
+					const ids = loadDialogueIds();
+
+					ids[pending_form.action] = id;
+					window.localStorage.setItem(DIALOGUE_IDS_KEY, JSON.stringify(ids));
+				}
+				catch (e) {
+					// Not remembered: the lookup is answered again next time.
+				}
+
+				return pending_form.overlay;
+			};
+
+			stack.hgt_hooked = true;
+		}
+
+		return true;
+	}
+
+	function openFormInPlace(action, params, trigger_element, on_open, success_key) {
+		if (!CFG.open_forms_in_place || typeof window.PopUp !== 'function' || !hookOverlayLookup()) {
+			return false;
+		}
+
+		const dialogueid = loadDialogueIds()[action] || `hgt-${action.replace(/\W/g, '-')}`;
+
+		// No answer from the hook while PopUp checks whether this dialog is already open.
+		pending_form = null;
+
+		try {
+			const overlay = window.PopUp(action, params, {
+				dialogueid,
+				dialogue_class: 'modal-popup-static',
+				prevent_navigation: true,
+				trigger_element
+			});
+
+			if (!overlay) {
+				return false;
+			}
+
+			pending_form = {action, overlay, until: Date.now() + 15000};
+
+			const dialogue = overlay.$dialogue ? overlay.$dialogue[0] : null;
+
+			on_open(dialogue);
+
+			if (dialogue) {
+				dialogue.addEventListener('dialogue.submit', (e) => {
+					const success = e.detail && e.detail.success;
+
+					try {
+						if (success && typeof window.addMessage === 'function'
+								&& typeof window.makeMessageBox === 'function') {
+							window.clearMessages && window.clearMessages();
+							window.addMessage(window.makeMessageBox('good', success.messages || [],
+								success.title || t(success_key)
+							));
+						}
+					}
+					catch (err) {
+						// Message is cosmetic.
+					}
+
+					loadData();
+				}, {once: true});
+			}
+
+			return true;
+		}
+		catch (error) {
+			console.warn(`[hostgrouptree] ${action} popup failed, using the list page`, error);
+
+			return false;
+		}
 	}
 
 	function groupFormFromList() {

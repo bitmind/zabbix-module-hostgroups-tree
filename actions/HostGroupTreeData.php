@@ -39,6 +39,9 @@ class HostGroupTreeData extends CController {
 		'show_column_headers' => false,
 		// "+" / "-" (expand all / collapse all) buttons in the panel header.
 		'show_expand_collapse_buttons' => false,
+		// Rename / Add group: open the host group form on the current page (false = through Data collection >
+		// Host groups).
+		'open_forms_in_place' => true,
 		// Seconds between automatic refreshes of the tree counters; 0 = only on page load.
 		'refresh_interval' => 60,
 		// Length of the period of "Create maintenance", in minutes.

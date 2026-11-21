@@ -91,7 +91,7 @@ html[theme="hc-dark"] .hgt-layout {
 	display: flex;
 	flex: 0 0 auto;
 	align-items: center;
-	/* Expand/collapse on the left, hide on the right. */
+	/* Title on the left, expand/collapse all and hide on the right. */
 	justify-content: space-between;
 	gap: 6px;
 	box-sizing: border-box;

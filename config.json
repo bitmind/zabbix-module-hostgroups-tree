@@ -1,8 +1,33 @@
+// Host group tree - module configuration.
+// Read on every request: reloading the page is enough to apply a change.
+// Comments (// and /* */) are allowed. Missing options or options of the wrong type use the default.
 {
+	// Pages where the host group tree is shown (true/false for each page). Default: all true.
+	"pages": {
+		// Monitoring > Hosts
+		"monitoring_hosts": true,
+		// Monitoring > Problems
+		"monitoring_problems": true,
+		// Data collection > Hosts
+		"data_collection_hosts": true
+	},
+
+	// Column headers above the tree (Host groups / Hosts / Problems or Availability). Default: false.
 	"show_column_headers": false,
-	"show_expand_collapse_buttons": false,
+
+	// "Expand all / Collapse all" button in the panel header. Default: true.
+	"show_expand_collapse_buttons": true,
+
+	// "Edit host group" / "Add group" open the host group form on the current page.
+	// false = through Data collection > Host groups. Default: true.
 	"open_forms_in_place": true,
+
+	// Seconds between two automatic refreshes of the counters; 0 = only at page load. Default: 60.
 	"refresh_interval": 60,
+
+	// Length of the period created by "Create maintenance", in minutes. Default: 60.
 	"maintenance_period_minutes": 60,
+
+	// Maximum number of problems read for the counters of Monitoring > Problems. Default: 50000.
 	"problem_limit": 50000
 }

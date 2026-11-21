@@ -35,10 +35,16 @@ class HostGroupTreeData extends CController {
 
 	// Defaults of config.json (module folder). Missing or invalid values fall back to these.
 	private const CONFIG_DEFAULTS = [
+		// Pages where the tree is shown.
+		'pages' => [
+			'monitoring_hosts' => true,
+			'monitoring_problems' => true,
+			'data_collection_hosts' => true
+		],
 		// Column headers above the tree (Host groups / Hosts / Problems ...).
 		'show_column_headers' => false,
-		// "+" / "-" (expand all / collapse all) buttons in the panel header.
-		'show_expand_collapse_buttons' => false,
+		// Expand all / collapse all button in the panel header.
+		'show_expand_collapse_buttons' => true,
 		// Rename / Add group: open the host group form on the current page (false = through Data collection >
 		// Host groups).
 		'open_forms_in_place' => true,
@@ -65,7 +71,9 @@ class HostGroupTreeData extends CController {
 			// "config": Data collection > Hosts, adds interface availability per group.
 			'mode' => 'in config',
 			// Query string of the Data collection > Hosts filter (applied fields, without host groups).
-			'host_filter' => 'string'
+			'host_filter' => 'string',
+			// Only the module configuration (pages where the tree is disabled ask only for this).
+			'config_only' => 'in 1'
 		]);
 
 		if (!$ret) {
@@ -86,6 +94,14 @@ class HostGroupTreeData extends CController {
 
 	protected function doAction(): void {
 		$this->config = self::readConfig();
+
+		if ($this->hasInput('config_only')) {
+			$this->setResponse(new CControllerResponseData([
+				'main_block' => json_encode(['config' => $this->config])
+			]));
+
+			return;
+		}
 
 		$groups = API::HostGroup()->get([
 			'output' => ['groupid', 'name'],
@@ -292,16 +308,17 @@ class HostGroupTreeData extends CController {
 
 	/**
 	 * config.json in the module folder, merged over CONFIG_DEFAULTS (unknown keys and wrong types are ignored).
+	 * The file may contain line (//) and block comments.
 	 */
-	private static function readConfig(): array {
+	private static function readConfig(?string $file = null): array {
 		$config = self::CONFIG_DEFAULTS;
-		$file = dirname(__DIR__).'/config.json';
+		$file = $file ?? dirname(__DIR__).'/config.json';
 
 		if (!is_readable($file)) {
 			return $config;
 		}
 
-		$data = json_decode((string) file_get_contents($file), true);
+		$data = json_decode(self::stripJsonComments((string) file_get_contents($file)), true);
 
 		if (!is_array($data)) {
 			return $config;
@@ -312,7 +329,17 @@ class HostGroupTreeData extends CController {
 				continue;
 			}
 
-			if (is_bool($default) && is_bool($data[$key])) {
+			if (is_array($default)) {
+				// Object of booleans (pages): every key on its own.
+				if (is_array($data[$key])) {
+					foreach ($default as $sub_key => $sub_default) {
+						if (array_key_exists($sub_key, $data[$key]) && is_bool($data[$key][$sub_key])) {
+							$config[$key][$sub_key] = $data[$key][$sub_key];
+						}
+					}
+				}
+			}
+			elseif (is_bool($default) && is_bool($data[$key])) {
 				$config[$key] = $data[$key];
 			}
 			elseif (is_int($default) && is_numeric($data[$key]) && $data[$key] >= 0) {
@@ -324,6 +351,51 @@ class HostGroupTreeData extends CController {
 		$config['problem_limit'] = max(1, $config['problem_limit']);
 
 		return $config;
+	}
+
+	/**
+	 * JSON with comments -> JSON: removes line (//) and block comments outside strings.
+	 */
+	private static function stripJsonComments(string $json): string {
+		$out = '';
+		$length = strlen($json);
+		$in_string = false;
+
+		for ($i = 0; $i < $length; $i++) {
+			$char = $json[$i];
+
+			if ($in_string) {
+				$out .= $char;
+
+				if ($char === '\\' && $i + 1 < $length) {
+					$out .= $json[++$i];
+				}
+				elseif ($char === '"') {
+					$in_string = false;
+				}
+			}
+			elseif ($char === '"') {
+				$in_string = true;
+				$out .= $char;
+			}
+			elseif ($char === '/' && $i + 1 < $length && $json[$i + 1] === '/') {
+				while ($i < $length && $json[$i] !== "\n") {
+					$i++;
+				}
+
+				$out .= "\n";
+			}
+			elseif ($char === '/' && $i + 1 < $length && $json[$i + 1] === '*') {
+				$end = strpos($json, '*/', $i + 2);
+				$i = ($end === false) ? $length : $end + 1;
+				$out .= ' ';
+			}
+			else {
+				$out .= $char;
+			}
+		}
+
+		return $out;
 	}
 
 	/**

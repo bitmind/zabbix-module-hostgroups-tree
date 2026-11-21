@@ -54,6 +54,8 @@ Install folder name on the server must be `modules/hostgrouptree`. Package:
   (Data collection filter → host.get options; unavailable interfaces with the *Host availability* widget logic).
   Returns `sev_counts` and `host_masks` (bitmask of severities per host) so the JS applies the page Severity filter
   without another request.
+- **Expand/collapse all** is one header button (`updateFoldButton()`: collapse while any non-root group is open,
+  otherwise expand); Alt+click on an arrow and `*` act on a whole branch (`toggleSubtree()`).
 - **Form mode detection**: `getFormMode(action, popup_since)` asks `CRouter` whether `hostgroup.edit` /
   `maintenance.edit` use `layout.json` (popup) or a page (7.0 host groups are a page).
 - **Look**: `syncNativeStyle()` copies radius/border/shadow/background/header/row border from the native table into
@@ -63,11 +65,19 @@ Install folder name on the server must be `modules/hostgrouptree`. Package:
 
 ## config.json
 
-Keys: `show_column_headers`, `show_expand_collapse_buttons`, `open_forms_in_place`, `refresh_interval`,
-`maintenance_period_minutes`, `problem_limit`. Read by `readConfig()` (merged over `CONFIG_DEFAULTS`, wrong types
-ignored) and sent to the JS (`applyModuleConfig()`). Adding a key = PHP `CONFIG_DEFAULTS` + JS `CFG` and
-`applyModuleConfig()` + `config.json` + README table. **Never let a test write the real `config.json`** (1.14.0
-shipped a test file by mistake): tests work on a copy.
+Keys: `pages` (object of booleans `monitoring_hosts`, `monitoring_problems`, `data_collection_hosts`),
+`show_column_headers`, `show_expand_collapse_buttons`, `open_forms_in_place`, `refresh_interval`,
+`maintenance_period_minutes`, `problem_limit`. The file is JSON **with comments** (`stripJsonComments()` before
+`json_decode`); every key has a comment in the shipped file. Read by `readConfig()` (merged over `CONFIG_DEFAULTS`,
+wrong types ignored, objects merged key by key) and sent to the JS (`applyModuleConfig()`). Adding a key = PHP
+`CONFIG_DEFAULTS` + JS `CFG` and `applyModuleConfig()` + `config.json` (with its comment) + README table.
+
+`pages`: the panel is built before the config arrives, so a disabled page is detected at the first data response
+(`removeLayout()` puts the native children back) and cached in localStorage `hostgrouptree.disabled_pages`. Cached
+disabled pages build nothing and only call the endpoint with `config_only=1`; if enabled again, `boot()` runs.
+
+**Never let a test write the real `config.json`** (1.14.0 shipped a test file by mistake): tests work on a copy
+(`readConfig()` accepts a file path for that).
 
 ## Pitfalls already paid for
 

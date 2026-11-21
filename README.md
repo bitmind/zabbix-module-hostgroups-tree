@@ -75,21 +75,22 @@ The tree state (open branches, width, visibility) is shared by the three pages.
 
 | Action | Effect |
 |---|---|
-| *All* root row | Removes the group from the filter (all groups). Shows the total number of hosts and the overall worst severity. Selected when the filter has no groups. |
+| *All* root row | Removes the group from the filter (all groups). Shows the total with its unit (e.g. *15 Hosts*, *3 Problems*) and the overall worst severity. Selected when the filter has no groups. |
 | Click on a name | Sets the group in the *Host groups* field of the **active filter tab** and presses *Apply*. The other fields are unchanged; the tab becomes "unsaved" if it differs from the saved one. |
 | Ctrl/⌘ + click | Adds/removes the group to/from the current selection (multiple selection). |
 | Virtual node (italic) | A prefix that does not exist as a group (e.g. `Sites` when only `Sites/Main` exists), or a group the user has no permission on: sets **all the real descendant groups** in the filter (only the top-most ones, since the native filter already includes subgroups). |
 | Arrow / double click on a name | Expands/collapses. The state is saved per browser. |
+| Alt + click on an arrow | Expands/collapses the whole branch (the group and all its descendants). |
 | *Hosts* column | Hosts of the subtree (distinct: a host in several groups is counted once), empty if 0. |
 | `⋯` handle on the left edge (shown when hovering the row), or right click on the row | Opens the context menu (items follow the permissions of the user role): |
 | | **MONITORING**: *Hosts* or *Problems* (the other page; both from Data collection), *Latest data*, *Inventory*. |
 | | **CONFIGURATION**: *Hosts* (Data collection › Hosts filtered; not on that page), *Maintenance* (maintenance list filtered on the group). |
 | | **ACTIONS**: *Add group* (new group form with `<path>/`; Super admin), *Edit host group* (group form with the name selected; disabled on virtual nodes), *Create maintenance* (see below; disabled on the root). |
 | Colored dot | Worst severity of the active (non-suppressed) problems of the subtree, with the severity colors/names configured in Zabbix. Only the severities checked in the *Severity* filter of the active tab are considered (none checked = all): if the group has no problems of those severities, there is no dot. Updated when the filter is applied or the tab changes. On Monitoring › Hosts the tooltip shows how many hosts of the group have problems (e.g. "5 hosts with problems"), with the same severities. Click → *Problems* filtered on the group and the same severities. |
-| *Host groups* title, then + / − on the right (hidden by default: `show_expand_collapse_buttons`) | Expand all / collapse all (the root stays open). |
+| Double chevron button in the panel header (`show_expand_collapse_buttons`) | One button: *Collapse all* while at least one group is expanded (chevrons pointing inwards), otherwise *Expand all* (chevrons pointing outwards). The root stays open. Disabled while searching. |
 | ✕ (right side of the panel header) / vertical strip | ✕ hides the panel, which becomes a 14 px white vertical strip (`CFG.strip_width`). The whole strip can be clicked to show the panel again. Reloading the page with the panel hidden shows no animation. |
 | Right edge of the panel | Drag to resize (180–640 px), double click to reset. |
-| Keyboard | ↑ ↓ to move, → ← to expand/collapse, Enter to select, Esc in the search box (bottom of the panel) or the ✕ in the box to clear it. |
+| Keyboard | ↑ ↓ to move, → ← to expand/collapse, `*` to expand the whole branch, Enter to select, Esc in the search box (bottom of the panel) or the ✕ in the box to clear it. |
 
 A virtual node with a single real branch (e.g. `Company` when only `Company/websites` exists) produces the same filter
 as its child: the clicked row is highlighted; if the filter comes from elsewhere (saved tab, manual edit) the real
@@ -143,12 +144,19 @@ included) without hardcoded values.
 
 ## Configuration
 
-`config.json` in the module folder (read by the endpoint on every request, so reloading the page is enough):
+`config.json` in the module folder (read by the endpoint on every request, so reloading the page is enough). The file
+is JSON with comments: `//` and `/* */` are allowed, and the shipped file describes every option.
 
-```json
+```jsonc
 {
+	// Pages where the host group tree is shown.
+	"pages": {
+		"monitoring_hosts": true,
+		"monitoring_problems": true,
+		"data_collection_hosts": true
+	},
 	"show_column_headers": false,
-	"show_expand_collapse_buttons": false,
+	"show_expand_collapse_buttons": true,
 	"open_forms_in_place": true,
 	"refresh_interval": 60,
 	"maintenance_period_minutes": 60,
@@ -158,8 +166,9 @@ included) without hardcoded values.
 
 | Option | Default | Meaning |
 |---|---|---|
+| `pages` | all `true` | Enables the tree page by page: `monitoring_hosts` (Monitoring › Hosts), `monitoring_problems` (Monitoring › Problems), `data_collection_hosts` (Data collection › Hosts). A disabled page is left native. The browser remembers it, so the next visits ask only for the configuration and the tree comes back by itself when the page is enabled again. |
 | `show_column_headers` | `false` | Shows the column headers above the tree (*Host groups* · *Hosts* · *Problems* / *Availability*). |
-| `show_expand_collapse_buttons` | `false` | Shows the + / − buttons (expand all / collapse all) in the panel header. |
+| `show_expand_collapse_buttons` | `true` | Shows the expand all / collapse all button in the panel header. |
 | `open_forms_in_place` | `true` | *Edit host group* / *Add group* open the host group form on the current page. `false` = through *Data collection › Host groups* (see below). |
 | `refresh_interval` | `60` | Seconds between two automatic refreshes of the counters; `0` = only at page load. |
 | `maintenance_period_minutes` | `60` | Length of the period created by *Create maintenance*, in minutes. |

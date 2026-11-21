@@ -1,0 +1,34 @@
+{
+	"manifest_version": 2.0,
+	"id": "hostgrouptree_widget",
+	"type": "widget",
+	"name": "Host group tree",
+	"namespace": "HostGroupTreeWidget",
+	"version": "1.18.0-zbx7.0",
+	"author": "",
+	"description": "Host group tree as a dashboard navigation widget: the selected host group is broadcast to the other widgets and kept across dashboard pages.",
+	"widget": {
+		"js_class": "CWidgetHostGroupTree",
+		"size": {
+			"width": 12,
+			"height": 8
+		},
+		"out": [
+			{
+				"type": "_hostgroupid"
+			},
+			{
+				"type": "_hostgroupids"
+			}
+		]
+	},
+	"actions": {
+		"widget.hostgrouptree_widget.view": {
+			"class": "WidgetView"
+		}
+	},
+	"assets": {
+		"js": ["class.widget.js"],
+		"css": ["widget.css"]
+	}
+}

@@ -91,8 +91,8 @@ html[theme="hc-dark"] .hgt-layout {
 	display: flex;
 	flex: 0 0 auto;
 	align-items: center;
-	/* Title on the left, expand/collapse all and hide on the right. */
-	justify-content: space-between;
+	/* Expand/collapse all on the left edge, then the title; hide pushed to the right (.hgt-tools). */
+	justify-content: flex-start;
 	gap: 6px;
 	box-sizing: border-box;
 	min-height: var(--hgt-head-height, 32px);
@@ -102,7 +102,14 @@ html[theme="hc-dark"] .hgt-layout {
 	border-bottom: 1px solid var(--hgt-head-border, var(--hgt-border));
 }
 
+/* Expand/collapse all: left edge of the header, close to the panel border. */
+.hgt-header > .hgt-btn-fold {
+	flex: 0 0 auto;
+	margin-left: -6px;
+}
+
 .hgt-title {
+	flex: 1 1 auto;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;

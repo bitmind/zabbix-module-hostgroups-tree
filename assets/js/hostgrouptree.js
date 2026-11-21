@@ -494,10 +494,10 @@
 		dom.btn_fold = iconButton('hgt-btn-fold', t('expand_all'), 'expand');
 		dom.btn_hide = iconButton('hgt-btn-hide', t('collapse_panel'), 'close');
 
-		// Title on the left; expand/collapse all (shown when config.json allows it) and hide on the right.
+		// Expand/collapse all on the left edge (shown when config.json allows it), then the title; hide on the right.
 		dom.btn_fold.hidden = true;
-		tools_right.append(dom.btn_fold, dom.btn_hide);
-		header.append(el('span', 'hgt-title', {text: t('title')}), tools_right);
+		tools_right.append(dom.btn_hide);
+		header.append(dom.btn_fold, el('span', 'hgt-title', {text: t('title')}), tools_right);
 
 		// Search.
 		const search_wrap = el('div', 'hgt-search');

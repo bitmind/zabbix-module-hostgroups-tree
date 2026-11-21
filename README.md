@@ -1,6 +1,7 @@
 # Host group tree – Monitoring › Hosts (Zabbix 7.0)
 
-Adds a host group tree panel to **Monitoring › Hosts**, **Monitoring › Problems** and **Data collection › Hosts**.
+Adds a host group tree panel to **Monitoring › Hosts**, **Monitoring › Problems** and **Data collection › Hosts**,
+and the same tree as a **dashboard navigation widget** (see [Dashboard widget](#dashboard-widget)).
 The native page (tab filters, list, sorting, paging, auto-refresh) is **neither replaced
 nor copied**: the module wraps it in a two-column layout and drives the native filter.
 
@@ -21,6 +22,10 @@ Same code as the 8.0 build. Expected differences on 7.0:
 2. *Administration › General › Modules* → **Scan directory** → enable **Host group tree (Hosts, Problems, Data collection)**.
 3. Open *Monitoring › Hosts* and reload the page (Ctrl+F5 the first time, so that no cached assets are used).
 
+The dashboard widget is a separate frontend module (Zabbix loads widgets only from modules of type `widget`): copy
+the `widget/` folder of this repository to `<Zabbix frontend>/modules/hostgrouptree-widget`, *Scan directory*, enable
+**Host group tree** (widget). It works with or without the page module.
+
 To uninstall: disable the module. The state saved in the browser (`localStorage`, key `hostgrouptree.state.v1`)
 is harmless.
 
@@ -35,6 +40,16 @@ hostgrouptree/
 └── assets/
     ├── js/hostgrouptree.js          layout, tree, synchronization with the filter
     └── css/hostgrouptree.css
+
+widget/                              dashboard widget, installed as modules/hostgrouptree-widget
+├── manifest.json                    type "widget", broadcasts _hostgroupid / _hostgroupids
+├── Widget.php
+├── includes/WidgetForm.php          widget settings
+├── actions/WidgetView.php           tree + counters as JSON variables
+├── views/widget.edit.php, views/widget.view.php
+└── assets/
+    ├── js/class.widget.js           CWidgetHostGroupTree
+    └── css/widget.css
 ```
 
 Module assets are loaded on every page: the script exits immediately unless the page is one of those it handles
@@ -102,6 +117,37 @@ that the selection is inside it. When the page opens, the branch of the group in
 
 Counters and severities are refreshed every `refresh_interval` seconds (default 60, only while the browser tab is
 visible) and at every page load.
+
+## Dashboard widget
+
+**Host group tree** widget: the same tree, header (expand/collapse all on the left edge), search box, row menu
+(MONITORING / CONFIGURATION links, no ACTIONS) and keyboard of the panel, without the hide button. It is a navigation
+widget: the other widgets select it as the source of their *Host groups* field (*Widget* → *Host group tree*).
+
+| Click | Broadcast to the other widgets |
+|---|---|
+| A group | The group (`_hostgroupid`, `_hostgroupids`); receivers include its subgroups as usual. |
+| A virtual node (italic) | Its top-most real descendant groups. |
+| Ctrl/⌘ + click | Adds/removes the row to/from the selection: all the selected groups. |
+| *All* | No group (= all), or, when the widget has root or excluded groups, all the groups of the tree. |
+
+**Several dashboard pages**: put a Host group tree widget on each page. The selection is shared by all the Host
+group tree widgets of the same dashboard: when another page is shown, its widget takes the selected groups and
+broadcasts them to the widgets of that page. The open branches are shared too. The selection lasts for the browser
+tab (`sessionStorage`), the open branches are kept per browser (`localStorage`).
+
+Settings:
+
+| Section | Field | Meaning |
+|---|---|---|
+| Filters | *Host groups* | Roots of the tree: these groups and their subgroups (`<name>/…`). A root whose parent is not shown appears with its full name. Empty = all groups. |
+| Filters | *Exclude host groups* | Removed from the tree together with their subgroups. |
+| Filters | *Severity* | Problems counted in the tree; none checked = all. |
+| Display options | *Show problems* | *All* / *Unacknowledged* / *None*: worst severity dot and number of problems per group. |
+| Display options | *Show suppressed problems* | Counts suppressed problems too (default off). |
+| Display options | *Show number of hosts* | Number of hosts per group (default on). |
+
+Host group fields are not available on template dashboards (as in the native widgets).
 
 ## Create maintenance
 

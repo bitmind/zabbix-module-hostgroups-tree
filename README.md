@@ -5,6 +5,14 @@ and the same tree as a **dashboard navigation widget** (see [Dashboard widget](#
 The native page (tab filters, list, sorting, paging, auto-refresh) is **neither replaced
 nor copied**: the module wraps it in a two-column layout and drives the native filter.
 
+## What's new
+
+| Version | Changes |
+|---|---|
+| 1.18 | **Dashboard widget** *Host group tree (widget)*: the same tree as a navigation widget, broadcasts the selected host groups to the other widgets and keeps the selection across dashboard pages (see [Dashboard widget](#dashboard-widget)). Panel: the expand/collapse all button is on the left edge of the header. Module names: *Host group tree (panel)* and *Host group tree (widget)*; same version number for Zabbix 7.0 and 8.0. |
+| 1.17 | `config.json`: `pages` enables the tree page by page; comments allowed and every option described. Expand/collapse all is one button, shown by default (*Collapse all* while a group is expanded, otherwise *Expand all*); Alt + click on an arrow and `*` expand/collapse a whole branch. |
+| 1.16 | The *All* row shows the unit after the total (*15 Hosts*, *3 Problems*). |
+
 ## Version 7.0
 
 Same code as the 8.0 build. Expected differences on 7.0:
@@ -19,12 +27,12 @@ Same code as the 8.0 build. Expected differences on 7.0:
 
 1. Copy the `hostgrouptree/` folder to `<Zabbix frontend>/modules/` (e.g. `/usr/share/zabbix/modules/hostgrouptree`).
    Same owner/permissions as the other frontend files.
-2. *Administration › General › Modules* → **Scan directory** → enable **Host group tree (Hosts, Problems, Data collection)**.
+2. *Administration › General › Modules* → **Scan directory** → enable **Host group tree (panel)**.
 3. Open *Monitoring › Hosts* and reload the page (Ctrl+F5 the first time, so that no cached assets are used).
 
 The dashboard widget is a separate frontend module (Zabbix loads widgets only from modules of type `widget`): copy
 the `widget/` folder of this repository to `<Zabbix frontend>/modules/hostgrouptree-widget`, *Scan directory*, enable
-**Host group tree** (widget). It works with or without the page module.
+**Host group tree (widget)**. It works with or without the page module.
 
 To uninstall: disable the module. The state saved in the browser (`localStorage`, key `hostgrouptree.state.v1`)
 is harmless.
@@ -102,7 +110,7 @@ The tree state (open branches, width, visibility) is shared by the three pages.
 | | **CONFIGURATION**: *Hosts* (Data collection › Hosts filtered; not on that page), *Maintenance* (maintenance list filtered on the group). |
 | | **ACTIONS**: *Add group* (new group form with `<path>/`; Super admin), *Edit host group* (group form with the name selected; disabled on virtual nodes), *Create maintenance* (see below; disabled on the root). |
 | Colored dot | Worst severity of the active (non-suppressed) problems of the subtree, with the severity colors/names configured in Zabbix. Only the severities checked in the *Severity* filter of the active tab are considered (none checked = all): if the group has no problems of those severities, there is no dot. Updated when the filter is applied or the tab changes. On Monitoring › Hosts the tooltip shows how many hosts of the group have problems (e.g. "5 hosts with problems"), with the same severities. Click → *Problems* filtered on the group and the same severities. |
-| Double chevron button in the panel header (`show_expand_collapse_buttons`) | One button: *Collapse all* while at least one group is expanded (chevrons pointing inwards), otherwise *Expand all* (chevrons pointing outwards). The root stays open. Disabled while searching. |
+| Double chevron button on the left edge of the panel header (`show_expand_collapse_buttons`) | One button: *Collapse all* while at least one group is expanded (chevrons pointing inwards), otherwise *Expand all* (chevrons pointing outwards). The root stays open. Disabled while searching. |
 | ✕ (right side of the panel header) / vertical strip | ✕ hides the panel, which becomes a 14 px white vertical strip (`CFG.strip_width`). The whole strip can be clicked to show the panel again. Reloading the page with the panel hidden shows no animation. |
 | Right edge of the panel | Drag to resize (180–640 px), double click to reset. |
 | Keyboard | ↑ ↓ to move, → ← to expand/collapse, `*` to expand the whole branch, Enter to select, Esc in the search box (bottom of the panel) or the ✕ in the box to clear it. |

@@ -1,11 +1,11 @@
 {
 	"manifest_version": 2.0,
 	"id": "hostgrouptree",
-	"name": "Host group tree (Hosts, Problems, Data collection)",
+	"name": "Host group tree (panel)",
 	"namespace": "HostGroupTree",
-	"version": "1.18.0-zbx7.0",
-	"author": "",
-	"description": "Zabbix 7.0. Adds a collapsible host group tree to Monitoring > Hosts, Monitoring > Problems and Data collection > Hosts. Clicking a group sets it in the active filter tab, keeping all the other filter fields. Shows host count and worst problem severity per group.",
+	"version": "1.18.1",
+	"author": "bitmind",
+	"description": "Zabbix 7.0. Host group tree panel for Monitoring > Hosts, Monitoring > Problems and Data collection > Hosts: a click sets the group in the native filter. Host and problem counts per group, search, row menu; pages enabled in config.json.",
 	"actions": {
 		"hostgrouptree.data": {
 			"class": "HostGroupTreeData",

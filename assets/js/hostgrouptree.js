@@ -1497,6 +1497,10 @@
 				title: node.hosts ? t('hosts_count', node.hosts) : null,
 				text: node.hosts ? String(node.hosts) : ''
 			});
+
+			if (node.is_root && node.hosts) {
+				host_count.append(countUnit(t('col_hosts')));
+			}
 		}
 
 		label.title = node.is_root
@@ -1533,6 +1537,10 @@
 				title: tip || null,
 				text: problems.count ? String(problems.count) : ''
 			});
+
+			if (node.is_root && problems.count) {
+				count.append(countUnit(t('col_problems')));
+			}
 
 			indicators = [severity, count];
 		}
@@ -1601,6 +1609,11 @@
 		row.append(indicator_cell);
 
 		return row;
+	}
+
+	// Unit after the number, only on the root row ("All"): "123 Hosts" / "45 Problems".
+	function countUnit(text) {
+		return el('span', 'hgt-count-unit', {text: ` ${text}`});
 	}
 
 	// The row handle (always rendered, only its opacity changes).

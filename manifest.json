@@ -3,7 +3,7 @@
 	"id": "hostgrouptree",
 	"name": "Host group tree (Hosts, Problems, Data collection)",
 	"namespace": "HostGroupTree",
-	"version": "1.15.1-zbx7.0",
+	"version": "1.16.0-zbx7.0",
 	"author": "",
 	"description": "Zabbix 7.0. Adds a collapsible host group tree to Monitoring > Hosts, Monitoring > Problems and Data collection > Hosts. Clicking a group sets it in the active filter tab, keeping all the other filter fields. Shows host count and worst problem severity per group.",
 	"actions": {

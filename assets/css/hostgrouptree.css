@@ -395,6 +395,33 @@ html[theme^="hc-"] .hgt-row.is-selected .hgt-pcount {
 	color: inherit;
 }
 
+/* Root row ("All"): the count is followed by its unit, so its column grows to the left. */
+.hgt-row.is-root .hgt-col-count,
+.hgt-row.is-root .hgt-col-ind {
+	flex-basis: auto;
+	width: auto;
+}
+
+.hgt-row.is-root .hgt-col-count {
+	min-width: var(--hgt-col-count);
+}
+
+.hgt-row.is-root .hgt-col-ind {
+	min-width: var(--hgt-col-ind);
+}
+
+.hgt-no-headers .hgt-row.is-root .hgt-col-count {
+	min-width: 4.5ch;
+}
+
+.hgt-no-headers .hgt-row.is-root .hgt-col-ind {
+	min-width: 10px;
+}
+
+.hgt-mode-config.hgt-no-headers .hgt-row.is-root .hgt-col-ind {
+	min-width: 16px;
+}
+
 /*
  * Data collection > Hosts: hosts with unavailable interfaces. Small rounded red rectangle, like the Zabbix
  * availability icons (color from the theme class "status-red", fallback below), without text.

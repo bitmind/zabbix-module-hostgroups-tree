@@ -14,6 +14,7 @@ The same release works on Zabbix 7.0 and 8.0 (see [Zabbix 7.0](#zabbix-70)).
 
 | Version | Changes |
 |---|---|
+| 1.18.4 | Widget: *Show number of hosts* is *All* / *Enabled* / *None* (default *None*). |
 | 1.18.3 | Monitoring › Hosts: the number of hosts with problems, in red, after the severity dot (*All*: *64 hosts ● 15 with problems*). Units of the *All* row in lowercase (panel and widget). |
 | 1.18.2 | One release for Zabbix 7.0 and 8.0. Repository layout: the two modules are sibling folders named as their install folders; release zips in `dist/` (`tools/package.sh`). |
 | 1.18 | **Dashboard widget** *Host group tree (widget)*: the same tree as a navigation widget, broadcasts the selected host groups to the other widgets and keeps the selection across dashboard pages (see [Dashboard widget](#dashboard-widget)). Panel: the expand/collapse all button is on the left edge of the header. Module names: *Host group tree (panel)* and *Host group tree (widget)*. |
@@ -169,7 +170,7 @@ Settings:
 | Filters | *Severity* | Problems counted in the tree; none checked = all. |
 | Display options | *Show problems* | *All* / *Unacknowledged* / *None*: worst severity dot and number of problems per group. |
 | Display options | *Show suppressed problems* | Counts suppressed problems too (default off). |
-| Display options | *Show number of hosts* | Number of hosts per group (default on). |
+| Display options | *Show number of hosts* | *All* / *Enabled* (monitored hosts only) / *None* (default): number of hosts per group. |
 
 Host group fields are not available on template dashboards (as in the native widgets).
 

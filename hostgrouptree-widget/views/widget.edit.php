@@ -33,7 +33,7 @@
 				new CWidgetFieldCheckBoxView($data['fields']['show_suppressed'])
 			)
 			->addField(
-				new CWidgetFieldCheckBoxView($data['fields']['show_hosts'])
+				new CWidgetFieldRadioButtonListView($data['fields']['show_hosts'])
 			)
 	)
 	->show();

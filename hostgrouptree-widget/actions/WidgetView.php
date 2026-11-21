@@ -30,7 +30,7 @@ class WidgetView extends CControllerDashboardWidgetView {
 			],
 			'vars' => $this->getTree() + [
 				'show_problems' => (int) $this->fields_values['problems'] !== WidgetForm::PROBLEMS_NONE,
-				'show_hosts' => (int) $this->fields_values['show_hosts'] === 1,
+				'show_hosts' => (int) $this->fields_values['show_hosts'] !== WidgetForm::HOSTS_NONE,
 				// Root or excluded groups: "All" broadcasts the groups of the tree instead of no group.
 				'filtered' => (bool) (($this->fields_values['groupids'] ?? [])
 					|| ($this->fields_values['exclude_groupids'] ?? [])),
@@ -111,15 +111,26 @@ class WidgetView extends CControllerDashboardWidgetView {
 
 		// 3. Hosts -> distinct counts over every node of the subtree (a host in several groups counts once).
 		$hosts = API::Host()->get([
-			'output' => ['hostid'],
+			'output' => ['hostid', 'status'],
 			'selectHostGroups' => ['groupid'],
 			'groupids' => array_keys($group_path),
 			'preservekeys' => true
 		]) ?: [];
 
-		$total['hosts'] = count($hosts);
+		// "Enabled": only monitored hosts are counted (problems are counted on all the hosts of the group).
+		$counted = static fn(array $host): bool => true;
+
+		if ((int) $this->fields_values['show_hosts'] === WidgetForm::HOSTS_ENABLED) {
+			$counted = static fn(array $host): bool => $host['status'] == HOST_STATUS_MONITORED;
+		}
 
 		foreach ($hosts as $hostid => $host) {
+			$is_counted = $counted($host);
+
+			if ($is_counted) {
+				$total['hosts']++;
+			}
+
 			if (array_key_exists($hostid, $host_events)) {
 				$total['events'] = $host_events[$hostid] + $total['events'];
 			}
@@ -138,7 +149,9 @@ class WidgetView extends CControllerDashboardWidgetView {
 			}
 
 			foreach (array_keys($paths) as $p) {
-				$nodes[$p]['hosts']++;
+				if ($is_counted) {
+					$nodes[$p]['hosts']++;
+				}
 
 				if (array_key_exists($hostid, $host_events)) {
 					$nodes[$p]['events'] = $host_events[$hostid] + $nodes[$p]['events'];

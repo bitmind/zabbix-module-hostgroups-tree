@@ -34,7 +34,9 @@ hostgrouptree/                       panel -> <frontend>/modules/hostgrouptree
 hostgrouptree-widget/                widget -> <frontend>/modules/hostgrouptree-widget
   manifest.json                      id hostgrouptree_widget, namespace HostGroupTreeWidget (PHP Modules\HostGroupTreeWidget),
                                      type widget, js_class CWidgetHostGroupTree, out _hostgroupid + _hostgroupids
-  includes/WidgetForm.php            groupids (roots), exclude_groupids, severities, problems, show_suppressed, show_hosts
+  includes/WidgetForm.php            groupids (roots), exclude_groupids, severities, problems, show_suppressed,
+                                     show_hosts (radio: HOSTS_NONE = 0 default, ALL = 1, ENABLED = 2; 0/1 keep the meaning
+                                     of the former checkbox values)
   actions/WidgetView.php             tree + counters as CWidgetView vars (same node structure as the endpoint)
   assets/js/class.widget.js          the panel tree rewritten as a CWidget class
   assets/css/widget.css              the panel CSS with the hgtw- prefix (independent from the panel module)

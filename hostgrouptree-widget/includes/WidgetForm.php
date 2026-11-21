@@ -15,13 +15,19 @@ use Zabbix\Widgets\Fields\{
  * Host group tree widget form.
  *
  * Filters: root host groups, excluded host groups, severities.
- * Display options: show problems (All / Unacknowledged / None), show suppressed problems, show number of hosts.
+ * Display options: show problems (All / Unacknowledged / None), show suppressed problems, show number of hosts
+ * (All / Enabled / None).
  */
 class WidgetForm extends CWidgetForm {
 
 	public const PROBLEMS_ALL = 0;
 	public const PROBLEMS_UNACKNOWLEDGED = 1;
 	public const PROBLEMS_NONE = 2;
+
+	// "Show number of hosts". 0 = None, so values saved by the former checkbox (0 = unchecked) keep their meaning.
+	public const HOSTS_NONE = 0;
+	public const HOSTS_ALL = 1;
+	public const HOSTS_ENABLED = 2;
 
 	public function addFields(): self {
 		return $this
@@ -50,7 +56,11 @@ class WidgetForm extends CWidgetForm {
 				new CWidgetFieldCheckBox('show_suppressed', _('Show suppressed problems'))
 			)
 			->addField(
-				(new CWidgetFieldCheckBox('show_hosts', _('Show number of hosts')))->setDefault(1)
+				(new CWidgetFieldRadioButtonList('show_hosts', _('Show number of hosts'), [
+					self::HOSTS_ALL => _('All'),
+					self::HOSTS_ENABLED => _('Enabled'),
+					self::HOSTS_NONE => _('None')
+				]))->setDefault(self::HOSTS_NONE)
 			);
 	}
 }

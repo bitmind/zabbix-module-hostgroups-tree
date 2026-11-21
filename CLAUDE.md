@@ -11,11 +11,13 @@ The maintainer writes in Italian: reply in Italian. Code, comments, commit messa
 | Branch | Zabbix | Differences from `main` |
 |---|---|---|
 | `main` | 8.0 | — |
-| `7.0` | 7.0 | Only: `manifest.json` version suffix `-zbx7.0` and description prefixed with `Zabbix 7.0. `; README title `(Zabbix 7.0)`, no "8.0 table customizations" mention, extra `## Version 7.0` section before `## Installation`. |
+| `7.0` | 7.0 | Only: description prefixed with `Zabbix 7.0. ` in `manifest.json` and `widget/manifest.json`; README title `(Zabbix 7.0)`, no "8.0 table customizations" mention, extra `## Version 7.0` section before `## Installation`. |
 
 **The code is identical on both branches.** Every change is made on `main` and then applied to `7.0` (cherry-pick
 and fix the manifest/README conflicts by hand). Version differences are handled at runtime, never by branching code.
-Bump `manifest.json` `version` on both branches for every release (`X.Y.Z` / `X.Y.Z-zbx7.0`).
+Bump `version` in `manifest.json` and `widget/manifest.json` on both branches for every release (same `X.Y.Z` on both
+branches since 1.18.1; until 1.18.0 the 7.0 builds had a `-zbx7.0` suffix). Names: *Host group tree (panel)* /
+*Host group tree (widget)*, author `bitmind`. Keep the "What's new" table of the README up to date.
 
 ## Layout
 
@@ -32,7 +34,7 @@ Install folder names on the server: `modules/hostgrouptree` (page module, reposi
 `modules/hostgrouptree-widget` (the `widget/` folder). Packages:
 `git archive --prefix=hostgrouptree/ -o ../hostgrouptree-<version>.zip <branch> -- . ':(exclude)widget'` and
 `git archive --prefix=hostgrouptree-widget/ -o ../hostgrouptree-widget-<version>.zip <branch>:widget`.
-Bump `widget/manifest.json` together with `manifest.json` (same version and `-zbx7.0` suffix on `7.0`).
+Bump `widget/manifest.json` together with `manifest.json` (same version).
 
 ```
 widget/                        id hostgrouptree_widget, namespace HostGroupTreeWidget (PHP: Modules\HostGroupTreeWidget)

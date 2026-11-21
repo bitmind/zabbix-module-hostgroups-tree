@@ -1,7 +1,8 @@
 # CLAUDE.md — zabbix-module-hostgroups-tree
 
 Frontend module for Zabbix that adds a host group tree panel to **Monitoring › Hosts**, **Monitoring › Problems**
-and **Data collection › Hosts**. User-facing documentation: `README.md`. This file is the developer handoff.
+and **Data collection › Hosts**, plus a dashboard navigation widget with the same tree (`widget/`, a separate
+module). User-facing documentation: `README.md`. This file is the developer handoff.
 
 The maintainer writes in Italian: reply in Italian. Code, comments, commit messages and README are in English.
 
@@ -27,8 +28,20 @@ assets/js/hostgrouptree.js     everything client-side (one IIFE)
 assets/css/hostgrouptree.css
 ```
 
-Install folder name on the server must be `modules/hostgrouptree`. Package:
-`git archive --prefix=hostgrouptree/ -o ../hostgrouptree-<version>.zip <branch>`.
+Install folder names on the server: `modules/hostgrouptree` (page module, repository root without `widget/`) and
+`modules/hostgrouptree-widget` (the `widget/` folder). Packages:
+`git archive --prefix=hostgrouptree/ -o ../hostgrouptree-<version>.zip <branch> -- . ':(exclude)widget'` and
+`git archive --prefix=hostgrouptree-widget/ -o ../hostgrouptree-widget-<version>.zip <branch>:widget`.
+Bump `widget/manifest.json` together with `manifest.json` (same version and `-zbx7.0` suffix on `7.0`).
+
+```
+widget/                        id hostgrouptree_widget, namespace HostGroupTreeWidget (PHP: Modules\HostGroupTreeWidget)
+  manifest.json                type widget, js_class CWidgetHostGroupTree, out _hostgroupid + _hostgroupids
+  includes/WidgetForm.php      groupids (roots), exclude_groupids, severities, problems, show_suppressed, show_hosts
+  actions/WidgetView.php       tree + counters as CWidgetView vars (same node structure as the endpoint)
+  assets/js/class.widget.js    the panel tree rewritten as a CWidget class
+  assets/css/widget.css        the panel CSS with the hgtw- prefix (independent from the page module)
+```
 
 ## Architecture (keep these decisions)
 
@@ -101,6 +114,20 @@ disabled pages build nothing and only call the endpoint with `config_only=1`; if
    scrollbar.
 7. Keep `hostgrouptree.js` **ASCII-only** (non-ASCII as `\uXXXX`); module assets may be served without charset.
 8. Group names are user data: always `textContent`, never `innerHTML` (only static SVG from `ICONS` uses innerHTML).
+
+## Dashboard widget
+
+- Code shared with the panel is **copied**, not imported: the widget must work without the page module. A change to
+  the tree look/behavior goes to both `assets/` and `widget/assets/` (classes `hgt-` / `hgtw-`).
+- `onInitialize()` runs inside the `CWidgetBase` constructor, before subclass private fields exist: initialize in
+  `onStart()`.
+- `setContents()` keeps one DOM (`#dom`) and re-renders; `onClearContents()` drops it (cover messages).
+- Selection = set of row paths (empty = All), stored in sessionStorage `hostgrouptree.widget.selection.<dashboardid>`;
+  open branches in localStorage `hostgrouptree.widget.tree.<dashboardid>`. Every widget of the dashboard reads them
+  on `onActivate()` (page switch) and broadcasts if the selection changed; an unknown path falls back to All.
+- Broadcast: `_hostgroupids` = union of the covers; `_hostgroupid` = first id; All = `[]`, or the covers of the top
+  nodes when the form has roots/exclusions (`filtered`).
+- Widget JS API checked identical in 7.0 and 8.0 (`ui/js/class.widget-base.js`, release/8.0 on GitHub).
 
 ## Assumptions not yet verified on a real 8.0
 

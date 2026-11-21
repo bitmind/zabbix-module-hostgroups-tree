@@ -1,36 +1,57 @@
-# Host group tree – Monitoring › Hosts (Zabbix 8.0)
+# Host group tree (Zabbix 7.0 / 8.0)
 
-Adds a host group tree panel to **Monitoring › Hosts**, **Monitoring › Problems** and **Data collection › Hosts**,
-and the same tree as a **dashboard navigation widget** (see [Dashboard widget](#dashboard-widget)).
-The native page (tab filters, list, sorting, paging, auto-refresh, 8.0 table customizations) is **neither replaced
-nor copied**: the module wraps it in a two-column layout and drives the native filter.
+Two frontend modules with the same host group tree:
+
+- **Host group tree (panel)**: a panel next to the list of **Monitoring › Hosts**, **Monitoring › Problems** and
+  **Data collection › Hosts**. The native page (tab filters, list, sorting, paging, auto-refresh, 8.0 table
+  customizations) is **neither replaced nor copied**: the module wraps it in a two-column layout and drives the
+  native filter.
+- **Host group tree (widget)**: a dashboard navigation widget (see [Dashboard widget](#dashboard-widget)).
+
+The same release works on Zabbix 7.0 and 8.0 (see [Zabbix 7.0](#zabbix-70)).
 
 ## What's new
 
 | Version | Changes |
 |---|---|
-| 1.18 | **Dashboard widget** *Host group tree (widget)*: the same tree as a navigation widget, broadcasts the selected host groups to the other widgets and keeps the selection across dashboard pages (see [Dashboard widget](#dashboard-widget)). Panel: the expand/collapse all button is on the left edge of the header. Module names: *Host group tree (panel)* and *Host group tree (widget)*; same version number for Zabbix 7.0 and 8.0. |
+| 1.18.2 | One release for Zabbix 7.0 and 8.0. Repository layout: the two modules are sibling folders named as their install folders; release zips in `dist/` (`tools/package.sh`). |
+| 1.18 | **Dashboard widget** *Host group tree (widget)*: the same tree as a navigation widget, broadcasts the selected host groups to the other widgets and keeps the selection across dashboard pages (see [Dashboard widget](#dashboard-widget)). Panel: the expand/collapse all button is on the left edge of the header. Module names: *Host group tree (panel)* and *Host group tree (widget)*. |
 | 1.17 | `config.json`: `pages` enables the tree page by page; comments allowed and every option described. Expand/collapse all is one button, shown by default (*Collapse all* while a group is expanded, otherwise *Expand all*); Alt + click on an arrow and `*` expand/collapse a whole branch. |
 | 1.16 | The *All* row shows the unit after the total (*15 Hosts*, *3 Problems*). |
 
 ## Installation
 
-1. Copy the `hostgrouptree/` folder to `<Zabbix frontend>/modules/` (e.g. `/usr/share/zabbix/modules/hostgrouptree`).
-   Same owner/permissions as the other frontend files.
-2. *Administration › General › Modules* → **Scan directory** → enable **Host group tree (panel)**.
-3. Open *Monitoring › Hosts* and reload the page (Ctrl+F5 the first time, so that no cached assets are used).
+1. Copy the module folders to `<Zabbix frontend>/modules/` (e.g. `/usr/share/zabbix/modules/`), with the same
+   owner/permissions as the other frontend files:
+   - `hostgrouptree/` → the panel;
+   - `hostgrouptree-widget/` → the dashboard widget.
 
-The dashboard widget is a separate frontend module (Zabbix loads widgets only from modules of type `widget`): copy
-the `widget/` folder of this repository to `<Zabbix frontend>/modules/hostgrouptree-widget`, *Scan directory*, enable
-**Host group tree (widget)**. It works with or without the page module.
+   Install one or both: they do not depend on each other. `hostgrouptree-all-<version>.zip` contains both folders
+   and can be extracted directly into `modules/`.
+2. *Administration › General › Modules* → **Scan directory** → enable **Host group tree (panel)** and/or
+   **Host group tree (widget)**.
+3. Reload the page (Ctrl+F5 the first time, so that no cached assets are used).
 
-To uninstall: disable the module. The state saved in the browser (`localStorage`, key `hostgrouptree.state.v1`)
-is harmless.
+Two modules because Zabbix loads widgets only from modules of type `widget`, and loads the assets of those modules
+only on dashboards: the panel, which runs on other pages, needs a module of its own.
+
+To upgrade, replace the folders and keep your `hostgrouptree/config.json`. To uninstall: disable the modules. The
+state saved in the browser (`localStorage` / `sessionStorage` keys starting with `hostgrouptree.`) is harmless.
+
+## Zabbix 7.0
+
+Same code as on 8.0; differences are detected at runtime. Expected differences on 7.0:
+
+- the host group form is a page, not a popup: *Edit host group* and *Add group* open
+  *Data collection › Host groups › form*;
+- 7.0 tables have no rounded corners: the panel copies the style of the host table, so it has square corners and the
+  same border as the list;
+- no table customizations (introduced in 8.0).
 
 ## Structure
 
 ```
-hostgrouptree/
+hostgrouptree/                       panel module -> <frontend>/modules/hostgrouptree
 ├── manifest.json                    JSON action + assets loaded by the frontend
 ├── config.json                      module configuration (see "Configuration")
 ├── Module.php
@@ -39,7 +60,7 @@ hostgrouptree/
     ├── js/hostgrouptree.js          layout, tree, synchronization with the filter
     └── css/hostgrouptree.css
 
-widget/                              dashboard widget, installed as modules/hostgrouptree-widget
+hostgrouptree-widget/                widget module -> <frontend>/modules/hostgrouptree-widget
 ├── manifest.json                    type "widget", broadcasts _hostgroupid / _hostgroupids
 ├── Widget.php
 ├── includes/WidgetForm.php          widget settings
@@ -48,6 +69,10 @@ widget/                              dashboard widget, installed as modules/host
 └── assets/
     ├── js/class.widget.js           CWidgetHostGroupTree
     └── css/widget.css
+
+tests/                               PHP tests and mock pages (no Zabbix needed)
+tools/package.sh [ref]               release zips in dist/
+tools/deploy.sh <modules dir> [ref]  copies both modules into a modules/ folder (keeps config.json)
 ```
 
 Module assets are loaded on every page: the script exits immediately unless the page is one of those it handles

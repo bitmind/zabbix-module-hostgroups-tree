@@ -1,49 +1,50 @@
 # CLAUDE.md — zabbix-module-hostgroups-tree
 
-Frontend module for Zabbix that adds a host group tree panel to **Monitoring › Hosts**, **Monitoring › Problems**
-and **Data collection › Hosts**, plus a dashboard navigation widget with the same tree (`widget/`, a separate
-module). User-facing documentation: `README.md`. This file is the developer handoff.
+Two Zabbix frontend modules with the same host group tree: **Host group tree (panel)** (`hostgrouptree/`, a panel
+on **Monitoring › Hosts**, **Monitoring › Problems** and **Data collection › Hosts**) and **Host group tree (widget)**
+(`hostgrouptree-widget/`, a dashboard navigation widget). User-facing documentation: `README.md`. This file is the
+developer handoff.
 
 The maintainer writes in Italian: reply in Italian. Code, comments, commit messages and README are in English.
 
-## Branches
+## Branch and releases
 
-| Branch | Zabbix | Differences from `main` |
-|---|---|---|
-| `main` | 8.0 | — |
-| `7.0` | 7.0 | Only: description prefixed with `Zabbix 7.0. ` in `manifest.json` and `widget/manifest.json`; README title `(Zabbix 7.0)`, no "8.0 table customizations" mention, extra `## Version 7.0` section before `## Installation`. |
+Only `main`, for **both Zabbix 7.0 and 8.0**: version differences are handled at runtime, never by branching code.
+(Until 1.18.1 there was a `7.0` branch that differed only in manifest descriptions and README; it is merged and
+frozen.)
 
-**The code is identical on both branches.** Every change is made on `main` and then applied to `7.0` (cherry-pick
-and fix the manifest/README conflicts by hand). Version differences are handled at runtime, never by branching code.
-Bump `version` in `manifest.json` and `widget/manifest.json` on both branches for every release (same `X.Y.Z` on both
-branches since 1.18.1; until 1.18.0 the 7.0 builds had a `-zbx7.0` suffix). Names: *Host group tree (panel)* /
-*Host group tree (widget)*, author `bitmind`. Keep the "What's new" table of the README up to date.
+For every release: bump `version` in **both** manifests (same `X.Y.Z`), add a row to the README "What's new" table,
+then `tools/package.sh` (zips in `dist/`, not committed). Names: *Host group tree (panel)* / *Host group tree
+(widget)*, author `bitmind`.
 
 ## Layout
 
-```
-manifest.json                  id hostgrouptree, namespace HostGroupTree, action hostgrouptree.data (layout.json), assets
-config.json                    module configuration (see below)
-Module.php                     empty CModule
-actions/HostGroupTreeData.php  JSON endpoint: tree, counters, access flags, form modes, config
-assets/js/hostgrouptree.js     everything client-side (one IIFE)
-assets/css/hostgrouptree.css
-```
-
-Install folder names on the server: `modules/hostgrouptree` (page module, repository root without `widget/`) and
-`modules/hostgrouptree-widget` (the `widget/` folder). Packages:
-`git archive --prefix=hostgrouptree/ -o ../hostgrouptree-<version>.zip <branch> -- . ':(exclude)widget'` and
-`git archive --prefix=hostgrouptree-widget/ -o ../hostgrouptree-widget-<version>.zip <branch>:widget`.
-Bump `widget/manifest.json` together with `manifest.json` (same version).
+The two modules are sibling folders named as their install folders (Zabbix scans only the first level of
+`modules/`; a widget must be a module of type `widget`, and widget modules load their assets only on dashboards, so
+the panel cannot live in the widget module).
 
 ```
-widget/                        id hostgrouptree_widget, namespace HostGroupTreeWidget (PHP: Modules\HostGroupTreeWidget)
-  manifest.json                type widget, js_class CWidgetHostGroupTree, out _hostgroupid + _hostgroupids
-  includes/WidgetForm.php      groupids (roots), exclude_groupids, severities, problems, show_suppressed, show_hosts
-  actions/WidgetView.php       tree + counters as CWidgetView vars (same node structure as the endpoint)
-  assets/js/class.widget.js    the panel tree rewritten as a CWidget class
-  assets/css/widget.css        the panel CSS with the hgtw- prefix (independent from the page module)
+hostgrouptree/                       panel -> <frontend>/modules/hostgrouptree
+  manifest.json                      id hostgrouptree, namespace HostGroupTree, action hostgrouptree.data (layout.json)
+  config.json                        module configuration (see below)
+  Module.php                         empty CModule
+  actions/HostGroupTreeData.php      JSON endpoint: tree, counters, access flags, form modes, config
+  assets/js/hostgrouptree.js         everything client-side (one IIFE)
+  assets/css/hostgrouptree.css
+hostgrouptree-widget/                widget -> <frontend>/modules/hostgrouptree-widget
+  manifest.json                      id hostgrouptree_widget, namespace HostGroupTreeWidget (PHP Modules\HostGroupTreeWidget),
+                                     type widget, js_class CWidgetHostGroupTree, out _hostgroupid + _hostgroupids
+  includes/WidgetForm.php            groupids (roots), exclude_groupids, severities, problems, show_suppressed, show_hosts
+  actions/WidgetView.php             tree + counters as CWidgetView vars (same node structure as the endpoint)
+  assets/js/class.widget.js          the panel tree rewritten as a CWidget class
+  assets/css/widget.css              the panel CSS with the hgtw- prefix (independent from the panel module)
+tests/php/*_test.php                 PHP tests with stub classes
+tests/mock/{panel,widget}_server.py  mock pages for the browser
+tools/package.sh [ref]               dist/hostgrouptree-<v>.zip, hostgrouptree-widget-<v>.zip, hostgrouptree-all-<v>.zip
+tools/deploy.sh <modules dir> [ref]  git archive of both modules into a modules/ folder, keeps config.json
 ```
+
+Deploy and package use **committed** files (`git archive`): commit first.
 
 ## Architecture (keep these decisions)
 
@@ -120,7 +121,7 @@ disabled pages build nothing and only call the endpoint with `config_only=1`; if
 ## Dashboard widget
 
 - Code shared with the panel is **copied**, not imported: the widget must work without the page module. A change to
-  the tree look/behavior goes to both `assets/` and `widget/assets/` (classes `hgt-` / `hgtw-`).
+  the tree look/behavior goes to both `hostgrouptree/assets/` and `hostgrouptree-widget/assets/` (classes `hgt-` / `hgtw-`).
 - `onInitialize()` runs inside the `CWidgetBase` constructor, before subclass private fields exist: initialize in
   `onStart()`.
 - `setContents()` keeps one DOM (`#dom`) and re-renders; `onClearContents()` drops it (cover messages).
@@ -140,19 +141,20 @@ fields `timeperiod_type`, `period_days|hours|minutes`). Warnings are logged as `
 
 ## Testing
 
-No real Zabbix is reachable from the cloud. Checks used so far:
+No real Zabbix is reachable from the development machine/cloud. Before every commit:
 
-- `php -l actions/HostGroupTreeData.php`, `node --check assets/js/hostgrouptree.js`, `json` parse of `config.json`.
-- PHP units with stub classes (`CController`, `API`, … as empty classes) calling private static methods through
-  `ReflectionMethod` (`problemFilter`, `getHostFilterOptions`, `readConfig` on a temp copy).
-- Headless Chromium (Playwright) with mock pages that imitate the Zabbix DOM: `main > header.header-title`,
-  `.tabfilter-container` with `li.tabfilter-item-label.selected[data-target]`, a fake jQuery exposing
-  `multiSelect`, fake `PopUp` / `overlays_stack` reproducing the native behaviors (reuse of an open dialog by id,
-  `getById` lookups at init/cancel/submit), and a route that serves `hostgrouptree.data` JSON. Reproduce a reported
-  bug in the mock first, then fix.
+- `php -l` on the changed PHP, `node --check` on the changed JS, ASCII check of the JS.
+- `php tests/php/panel_config_test.php` and `php tests/php/widget_filter_test.php` (stub classes, private static
+  methods through reflection; `readConfig()` takes a file path so tests never touch the real `config.json`).
+- `python3 tests/mock/panel_server.py` → `http://localhost:8765/zabbix.php?action=host.view`: Zabbix-like page and a
+  fake `hostgrouptree.data` (`/set?page=<key>&v=0|1` toggles `pages`, `/calls` lists the requests).
+- `python3 tests/mock/widget_server.py` → `http://localhost:8766/`: two widgets on a fake `CWidget`; `runChecks()` in
+  the console replays the page switch scenario and returns `{ok, results}`.
+- Reproduce a reported bug in a mock first, then fix. Older mocks (fake jQuery `multiSelect`, `PopUp` /
+  `overlays_stack` for the in-place forms) were not kept: extend `panel_server.py` when needed.
 
-The maintainer tests on Zabbix 8.0 (LAN, `http://192.168.64.9/zabbix/`) and 7.0 and reports with screenshots and
-console output.
+The maintainer tests on Zabbix 8.0 (`http://192.168.64.9/zabbix/`) and 7.0 and reports with screenshots and console
+output. To update a test install: `tools/deploy.sh <its modules folder>` (works on local or mounted folders).
 
 ## Ideas not done yet
 

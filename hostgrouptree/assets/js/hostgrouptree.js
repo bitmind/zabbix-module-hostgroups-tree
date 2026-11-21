@@ -1,5 +1,5 @@
 /*
- * Host group tree for Monitoring > Hosts (Zabbix 8.0 frontend module).
+ * Host group tree for Monitoring > Hosts, Monitoring > Problems and Data collection > Hosts (Zabbix 7.0 / 8.0).
  *
  * The native page is left untouched: this script only wraps the existing filter + list into a two-column
  * layout and adds the tree on the left. Clicking a group writes it into the "Host groups" multiselect of the

@@ -67,7 +67,7 @@
 		// Defaults; the values of config.json (sent by the data endpoint) take precedence.
 		refresh_interval: 60000,	// Tree counters/severity refresh (ms). 0 = disabled.
 		show_column_headers: false,
-		show_expand_collapse_buttons: false,
+		show_expand_collapse_buttons: true,
 		open_forms_in_place: true,
 		maintenance_period_minutes: 60,
 		gap: null,					// Space around the panel (px). null = same as the space between the Zabbix
@@ -79,6 +79,8 @@
 		indent: 16,
 		apply_timeout: 3000,		// Wait for the native filter to react before falling back to a page reload.
 		storage_key: 'hostgrouptree.state.v1',
+		// Pages where config.json disabled the tree (cached, so the panel is not built and then removed).
+		disabled_key: 'hostgrouptree.disabled_pages',
 		// Native popup used to create/edit host groups (Data collection > Host groups).
 		strip_width: 14				// Width of the hidden panel (vertical strip).
 	};
@@ -86,10 +88,11 @@
 	// 16x16 icons, stroke/fill = currentColor (follow the theme text color).
 	const ICONS = {
 		add: '<path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-		// Expand all / collapse all.
-		expand: '<path d="M8 3.5v9M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6"'
-			+ ' stroke-linecap="round"/>',
-		collapse: '<path d="M3.5 8h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+		// Expand all (chevrons pointing outwards) / collapse all (chevrons pointing inwards).
+		expand: '<path d="m4.5 6 3.5-3.5L11.5 6M4.5 10l3.5 3.5 3.5-3.5" fill="none" stroke="currentColor"'
+			+ ' stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+		collapse: '<path d="m4.5 2.5 3.5 3.5 3.5-3.5M4.5 13.5l3.5-3.5 3.5 3.5" fill="none" stroke="currentColor"'
+			+ ' stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
 		show: '<path d="m6 3 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
 			+ ' stroke-linejoin="round"/>',
 		refresh: '<path d="M13 8a5 5 0 1 1-1.5-3.6" fill="none" stroke="currentColor" stroke-width="1.5"'
@@ -111,6 +114,7 @@
 			search: 'Search host group...',
 			expand_all: 'Expand all',
 			collapse_all: 'Collapse all',
+			subtree_tip: 'Alt+click on an arrow: the whole branch',
 			refresh: 'Refresh',
 			all_groups: 'All',
 			clear_search: 'Clear search',
@@ -155,6 +159,7 @@
 			search: 'Cerca un gruppo...',
 			expand_all: 'Espandi tutto',
 			collapse_all: 'Comprimi tutto',
+			subtree_tip: 'Alt+clic su una freccia: tutto il ramo',
 			refresh: 'Aggiorna',
 			all_groups: 'Tutti',
 			clear_search: 'Cancella ricerca',
@@ -233,6 +238,8 @@
 	let problem_reload_timer = null;
 	let last_click = stored.last_click && typeof stored.last_click.path === 'string' ? stored.last_click : null;
 	let first_load = true;
+	// config.json disabled the tree on this page: everything stops.
+	let disabled = false;
 
 	const dom = {};
 
@@ -312,6 +319,12 @@
 			return;
 		}
 
+		if (disabledPages().includes(MODE)) {
+			checkDisabledPage();
+
+			return;
+		}
+
 		const layout = el('div', `hgt-layout hgt-mode-${MODE}`);
 		const content = el('div', 'hgt-content');
 		const panel = buildPanel();
@@ -360,6 +373,79 @@
 
 	}
 
+	/* Pages enabled in config.json ("pages"): the last answer is cached per browser. */
+
+	const PAGE_CONFIG_KEYS = {hosts: 'monitoring_hosts', problems: 'monitoring_problems', config: 'data_collection_hosts'};
+
+	function pageEnabled(config) {
+		const pages = config && typeof config === 'object' ? config.pages : null;
+
+		return !(pages && typeof pages === 'object' && pages[PAGE_CONFIG_KEYS[MODE]] === false);
+	}
+
+	function disabledPages() {
+		try {
+			const list = JSON.parse(window.localStorage.getItem(CFG.disabled_key));
+
+			return Array.isArray(list) ? list : [];
+		}
+		catch (e) {
+			return [];
+		}
+	}
+
+	function setPageDisabled(state) {
+		const list = disabledPages().filter((mode) => mode !== MODE);
+
+		if (state) {
+			list.push(MODE);
+		}
+
+		try {
+			if (list.length) {
+				window.localStorage.setItem(CFG.disabled_key, JSON.stringify(list));
+			}
+			else {
+				window.localStorage.removeItem(CFG.disabled_key);
+			}
+		}
+		catch (e) {
+			// Storage unavailable: config.json is checked with the data request on every load.
+		}
+	}
+
+	// Page disabled at the last visit: only the configuration is asked; the tree is built if it is enabled again.
+	function checkDisabledPage() {
+		const url = new URL('zabbix.php', window.location.href);
+
+		url.search = '';
+		url.searchParams.set('action', CFG.data_action);
+		url.searchParams.set('config_only', '1');
+
+		fetch(url.toString(), {credentials: 'same-origin', headers: {'Accept': 'application/json'}})
+			.then((response) => response.ok ? response.json() : null)
+			.then((data) => {
+				if (data && data.config && pageEnabled(data.config)) {
+					setPageDisabled(false);
+					boot();
+				}
+			})
+			.catch((error) => console.warn('[hostgrouptree]', error));
+	}
+
+	// The tree was built, but config.json disables it on this page: the native page goes back as it was.
+	function removeLayout() {
+		disabled = true;
+
+		if (dom.layout && dom.layout.parentNode) {
+			while (dom.content.firstChild) {
+				dom.layout.parentNode.insertBefore(dom.content.firstChild, dom.layout);
+			}
+
+			dom.layout.remove();
+		}
+	}
+
 	// Module configuration (config.json) from the data endpoint: applied once, at the first load.
 	function applyModuleConfig(config) {
 		if (config && typeof config === 'object') {
@@ -385,8 +471,7 @@
 		}
 
 		dom.columns.hidden = !CFG.show_column_headers;
-		dom.btn_expand.hidden = !CFG.show_expand_collapse_buttons;
-		dom.btn_collapse.hidden = !CFG.show_expand_collapse_buttons;
+		dom.btn_fold.hidden = !CFG.show_expand_collapse_buttons;
 		dom.layout.classList.toggle('hgt-no-headers', !CFG.show_column_headers);
 
 		if (CFG.refresh_interval > 0) {
@@ -405,14 +490,13 @@
 		const header = el('div', 'hgt-header');
 		const tools_right = el('div', 'hgt-tools');
 
-		dom.btn_expand = iconButton('hgt-btn-expand', t('expand_all'), 'expand');
-		dom.btn_collapse = iconButton('hgt-btn-collapse', t('collapse_all'), 'collapse');
+		// One button: "Collapse all" while some group is expanded, otherwise "Expand all" (see updateFoldButton()).
+		dom.btn_fold = iconButton('hgt-btn-fold', t('expand_all'), 'expand');
 		dom.btn_hide = iconButton('hgt-btn-hide', t('collapse_panel'), 'close');
 
-		// Title on the left; expand/collapse (hidden by default, see config.json) and hide on the right.
-		dom.btn_expand.hidden = true;
-		dom.btn_collapse.hidden = true;
-		tools_right.append(dom.btn_expand, dom.btn_collapse, dom.btn_hide);
+		// Title on the left; expand/collapse all (shown when config.json allows it) and hide on the right.
+		dom.btn_fold.hidden = true;
+		tools_right.append(dom.btn_fold, dom.btn_hide);
 		header.append(el('span', 'hgt-title', {text: t('title')}), tools_right);
 
 		// Search.
@@ -495,6 +579,10 @@
 	 * labels of the tab filter (Monitoring) or of the classic filter (Data collection).
 	 */
 	function alignPanelTop() {
+		if (disabled) {
+			return;
+		}
+
 		const top = dom.layout.getBoundingClientRect().top;
 		const box_top = filterBoxTop();
 		let offset = 0;
@@ -611,7 +699,7 @@
 	}
 
 	function fitHeight() {
-		if (!dom.panel) {
+		if (!dom.panel || disabled) {
 			return;
 		}
 
@@ -719,6 +807,10 @@
 	/* ---------------------------------------------------------------------------------------------------------- */
 
 	function loadData(silent = false) {
+		if (disabled) {
+			return Promise.resolve();
+		}
+
 		const url = new URL('zabbix.php', window.location.href);
 
 		url.search = '';
@@ -754,10 +846,18 @@
 					throw new Error(data && data.error ? data.error : 'Invalid response');
 				}
 
+				if (first_load && !pageEnabled(data.config)) {
+					setPageDisabled(true);
+					removeLayout();
+
+					return;
+				}
+
 				model = buildModel(data);
 
 				if (first_load) {
 					first_load = false;
+					setPageDisabled(false);
 					applyModuleConfig(data.config);
 					expandToSelection();
 				}
@@ -1404,7 +1504,7 @@
 	/* ---------------------------------------------------------------------------------------------------------- */
 
 	function render() {
-		if (!model) {
+		if (!model || disabled) {
 			return;
 		}
 
@@ -1457,6 +1557,7 @@
 			hideMessage();
 		}
 
+		updateFoldButton();
 	}
 
 	function renderRow(node, open) {
@@ -2643,6 +2744,57 @@
 		render();
 	}
 
+	// Alt+click on an arrow / "*" key: the node and all its descendants, opened or closed together.
+	function toggleSubtree(node, open = !isOpen(node)) {
+		if (!node.children.length || search_set !== null) {
+			return;
+		}
+
+		const walk = (n) => {
+			if (n.children.length) {
+				// Collapsing the root keeps it open: only its branches are closed.
+				if (!(n.is_root && !open)) {
+					setOpen(n, open);
+				}
+
+				n.children.forEach(walk);
+			}
+		};
+
+		walk(node);
+		saveState();
+		render();
+	}
+
+	// At least one group (not the root) is expanded.
+	function anyGroupOpen() {
+		for (const node of model.by_path.values()) {
+			if (!node.is_root && node.children.length && expanded.has(node.path)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	// Expand all / collapse all: one button, its action depends on the state of the tree.
+	function updateFoldButton() {
+		if (!dom.btn_fold || !model) {
+			return;
+		}
+
+		const collapse = anyGroupOpen();
+		const title = `${t(collapse ? 'collapse_all' : 'expand_all')}\n${t('subtree_tip')}`;
+
+		dom.btn_fold.title = title;
+		dom.btn_fold.setAttribute('aria-label', t(collapse ? 'collapse_all' : 'expand_all'));
+		dom.btn_fold.innerHTML = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">${
+			ICONS[collapse ? 'collapse' : 'expand']}</svg>`;
+		// While searching every match is shown expanded: nothing to expand or collapse.
+		dom.btn_fold.disabled = search_set !== null
+			|| ![...model.by_path.values()].some((node) => !node.is_root && node.children.length);
+	}
+
 	function focusRow(path) {
 		const row = rowByPath(path);
 
@@ -2663,7 +2815,12 @@
 			}
 
 			if (e.target.closest('.hgt-toggle')) {
-				toggleNode(node);
+				if (e.altKey) {
+					toggleSubtree(node);
+				}
+				else {
+					toggleNode(node);
+				}
 			}
 			else if (e.target.closest('.hgt-handle')) {
 				openMenu(node, e.target.closest('.hgt-handle'), e);
@@ -2734,6 +2891,11 @@
 					selectNode(node, e.ctrlKey || e.metaKey);
 					break;
 
+				case '*':
+					toggleSubtree(node, true);
+					focusRow(node.path);
+					break;
+
 				case 'ContextMenu':
 					openMenu(node, menuAnchor(node), e);
 					break;
@@ -2782,18 +2944,20 @@
 
 
 
-		dom.btn_expand.addEventListener('click', () => {
-			if (model) {
-				model.by_path.forEach((node) => node.children.length && setOpen(node, true));
-				saveState();
-				render();
+		dom.btn_fold.addEventListener('click', () => {
+			if (!model || search_set !== null) {
+				return;
 			}
-		});
 
-		dom.btn_collapse.addEventListener('click', () => {
-			// The root stays open, otherwise the tree would be reduced to a single row.
-			expanded.clear();
-			root_collapsed = false;
+			if (anyGroupOpen()) {
+				// The root stays open, otherwise the tree would be reduced to a single row.
+				expanded.clear();
+				root_collapsed = false;
+			}
+			else {
+				model.by_path.forEach((node) => node.children.length && setOpen(node, true));
+			}
+
 			saveState();
 			render();
 		});

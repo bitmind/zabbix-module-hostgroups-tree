@@ -48,6 +48,9 @@ class CWidgetHostGroupTree extends CWidget {
 			maintenance: 'Maintenance',
 			actions: 'Actions',
 			hosts_count: '%1 hosts',
+			// Units after the totals of the "All" row.
+			unit_hosts: 'hosts',
+			unit_problems: 'problems',
 			problems_tip: '%1 problems, worst severity: %2',
 			virtual_tip: 'Not a host group: selects all its subgroups',
 			no_match: 'No matching groups',
@@ -70,6 +73,8 @@ class CWidgetHostGroupTree extends CWidget {
 			maintenance: 'Manutenzione',
 			actions: 'Azioni',
 			hosts_count: '%1 host',
+			unit_hosts: 'host',
+			unit_problems: 'problemi',
 			problems_tip: '%1 problemi, severità peggiore: %2',
 			virtual_tip: 'Non è un gruppo host: seleziona tutti i sottogruppi',
 			no_match: 'Nessun gruppo trovato',
@@ -678,7 +683,7 @@ class CWidgetHostGroupTree extends CWidget {
 			});
 
 			if (node.is_root && node.hosts) {
-				count.append(this.#el('span', 'hgtw-count-unit', {text: ` ${this.#t('hosts')}`}));
+				count.append(this.#el('span', 'hgtw-count-unit', {text: ` ${this.#t('unit_hosts')}`}));
 			}
 
 			row.append(count);
@@ -709,7 +714,7 @@ class CWidgetHostGroupTree extends CWidget {
 			});
 
 			if (node.is_root && problems.count) {
-				count.append(this.#el('span', 'hgtw-count-unit', {text: ` ${this.#t('problems')}`}));
+				count.append(this.#el('span', 'hgtw-count-unit', {text: ` ${this.#t('unit_problems')}`}));
 			}
 
 			cell.append(count);

@@ -17,11 +17,11 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <div class="filter" style="border:1px solid #ccc;padding:10px">native filter</div>
 <table class="list-table" style="width:100%;border:1px solid #ccc"><tbody><tr><td>host1</td></tr><tr><td>host2</td></tr></tbody></table>
 </main></div><script src="/modules/hostgrouptree/assets/js/hostgrouptree.js"></script></body></html>"""
-def node(path, gid, hosts, probs, sev):
+def node(path, gid, hosts, probs, sev, hosts_with_problems=None):
     parent = path.rsplit('/',1)[0] if '/' in path else None
     sc=[0]*6
     if sev is not None: sc[sev]=probs
-    return {'path':path,'name':path.split('/')[-1],'parent':parent,'groupid':gid,'hosts':hosts,'problems':probs,'severity':sev,'sev_counts':sc,'host_masks':{},'unavailable':0}
+    return {'path':path,'name':path.split('/')[-1],'parent':parent,'groupid':gid,'hosts':hosts,'problems':probs,'severity':sev,'sev_counts':sc,'host_masks':({str(1 << sev): hosts_with_problems or probs} if sev is not None else {}),'unavailable':0}
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self,*a): pass
     def send(self, body, ctype):
@@ -43,7 +43,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 cfg = {'pages': STATE['pages'], 'show_column_headers': False, 'show_expand_collapse_buttons': True, 'open_forms_in_place': True, 'refresh_interval': 0, 'maintenance_period_minutes': 60, 'problem_limit': 50000}
                 if 'config_only' in q: return self.send(json.dumps({'config': cfg}), 'application/json')
                 nodes=[node('Sites','1',10,3,4),node('Sites/Rome','2',4,1,2),node('Sites/Rome/DC1','3',2,1,2),node('Sites/Milan','4',6,2,4),node('Servers','5',5,0,None),node('Servers/Linux','6',5,0,None)]
-                return self.send(json.dumps({'nodes':nodes,'total':{'hosts':15,'problems':3,'severity':4,'sev_counts':[0,0,1,0,2,0],'unavailable':0,'host_masks':{}},'config':cfg,'severity_names':{str(i):n for i,n in enumerate(['NC','Info','Warning','Average','High','Disaster'])},'group_form':'popup','maintenance_form':'popup','access':{'problems':True,'latest':True,'hosts':True,'inventory':True,'hosts_config':True,'edit_group':True,'maintenance':True,'create_maintenance':True,'create_group':True}}), 'application/json')
+                return self.send(json.dumps({'nodes':nodes,'total':{'hosts':15,'problems':3,'severity':4,'sev_counts':[0,0,1,0,2,0],'unavailable':0,'host_masks':{'16':2,'4':1}},'config':cfg,'severity_names':{str(i):n for i,n in enumerate(['NC','Info','Warning','Average','High','Disaster'])},'group_form':'popup','maintenance_form':'popup','access':{'problems':True,'latest':True,'hosts':True,'inventory':True,'hosts_config':True,'edit_group':True,'maintenance':True,'create_maintenance':True,'create_group':True}}), 'application/json')
             return self.send(PAGE, 'text/html')
         self.send_error(404)
 print('http://localhost:8765/zabbix.php?action=host.view', flush=True)

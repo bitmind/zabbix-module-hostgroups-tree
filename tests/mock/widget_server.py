@@ -53,7 +53,7 @@ window.runChecks = function () {
   const resp2 = JSON.parse(JSON.stringify(RESP)); resp2.nodes = resp2.nodes.filter(n => n.path !== 'Sites/Milan');
   A.setContents(resp2);
   check('selected group gone: back to All', [rows(A), last()], [['All'], ['A', '{"_hostgroupid":[],"_hostgroupids":[]}']]);
-  check('All shows the units', A._body.querySelector('.hgtw-row.is-root').textContent, 'All15 Hosts4 Problems');
+  check('All shows the units', A._body.querySelector('.hgtw-row.is-root').textContent, 'All15 hosts4 problems');
   return {ok: results.every(r => r.ok), results};
 };
 </script></body></html>"""

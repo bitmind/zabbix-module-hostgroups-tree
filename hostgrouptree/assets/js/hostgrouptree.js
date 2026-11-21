@@ -145,6 +145,10 @@
 			actions: 'Actions',
 			problems_tip: '%1 problems, worst severity: %2',
 			hosts_problems_tip: '%1 hosts with problems',
+			// Units after the totals of the "All" row.
+			unit_hosts: 'hosts',
+			unit_problems: 'problems',
+			unit_with_problems: 'with problems',
 			sev_filtered: '(severity filter applied)',
 			virtual_tip: 'Not a host group: selects all its subgroups',
 			problems: 'Problems',
@@ -190,6 +194,9 @@
 			actions: 'Azioni',
 			problems_tip: '%1 problemi, severit\u00E0 peggiore: %2',
 			hosts_problems_tip: '%1 host con problemi',
+			unit_hosts: 'host',
+			unit_problems: 'problemi',
+			unit_with_problems: 'con problemi',
 			sev_filtered: '(filtro severit\u00E0 attivo)',
 			virtual_tip: 'Non \u00E8 un gruppo host: seleziona tutti i sottogruppi',
 			problems: 'Problemi',
@@ -1600,7 +1607,7 @@
 			});
 
 			if (node.is_root && node.hosts) {
-				host_count.append(countUnit(t('col_hosts')));
+				host_count.append(countUnit(t('unit_hosts')));
 			}
 		}
 
@@ -1640,7 +1647,7 @@
 			});
 
 			if (node.is_root && problems.count) {
-				count.append(countUnit(t('col_problems')));
+				count.append(countUnit(t('unit_problems')));
 			}
 
 			indicators = [severity, count];
@@ -1666,9 +1673,11 @@
 		else {
 			// Worst severity dot (opens Problems). <span>, not <button>: theme button styles would deform it.
 			let severity;
+			let hosts_tip = null;
+			const hosts_with_problems = problems.worst !== null ? hostsWithProblems(node) : 0;
 
 			if (problems.worst !== null) {
-				const hosts_tip = t('hosts_problems_tip', hostsWithProblems(node))
+				hosts_tip = t('hosts_problems_tip', hosts_with_problems)
 					+ (filter_severities.size ? ` ${t('sev_filtered')}` : '');
 
 				severity = el('span', `hgt-sev ${SEVERITY_CLASSES[problems.worst] || ''}`, {
@@ -1686,7 +1695,22 @@
 				severity = el('span', 'hgt-sev is-none', {'aria-hidden': 'true'});
 			}
 
-			indicators = [severity];
+			// Monitoring > Hosts: hosts with problems after the dot (same red as on Problems). Empty when 0.
+			if (MODE === 'hosts') {
+				const count = el('span', `hgt-pcount red${hosts_with_problems === 0 ? ' is-zero' : ''}`, {
+					title: hosts_tip,
+					text: hosts_with_problems ? String(hosts_with_problems) : ''
+				});
+
+				if (node.is_root && hosts_with_problems) {
+					count.append(countUnit(t('unit_with_problems')));
+				}
+
+				indicators = [severity, count];
+			}
+			else {
+				indicators = [severity];
+			}
 		}
 
 		// Context menu handle on the left edge, visible while hovering the row.
